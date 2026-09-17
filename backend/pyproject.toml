@@ -10,10 +10,25 @@ dependencies = [
     "asyncpg>=0.31.0",
     "copilotkit>=0.1.96",
     "fastapi>=0.141.1",
+    "greenlet>=3.2.4",
     "langchain>=1.4.1",
     "langchain-openai>=1.6.2",
     "langgraph>=1.2.11",
     "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.0.54",
     "uvicorn>=0.53.0",
+]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.21.0",
+    "httpx>=0.28.1",
+    "pytest>=8.4.2",
+    "ruff>=0.12.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
 ]

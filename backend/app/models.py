@@ -1,13 +1,12 @@
 import uuid
-from datetime import datetime, date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    String,
     Date,
     DateTime,
     Numeric,
-    ForeignKey,
+    String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,6 +57,6 @@ class Expense(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
     )
