@@ -5,13 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import services
+from app.context import DEMO_USER_ID
 from app.database import get_db
 from app.models import Expense
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 Session = Annotated[AsyncSession, Depends(get_db)]
-DEMO_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 async def require_category(category_id: uuid.UUID, session: Session) -> None:

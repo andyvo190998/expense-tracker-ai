@@ -65,3 +65,11 @@ async def category_exists(
             )
         )
     )
+
+
+async def find_category_by_name(
+    session: AsyncSession, user_id: uuid.UUID, name: str
+) -> Category | None:
+    return await session.scalar(
+        select(Category).where(Category.user_id == user_id, Category.name == name)
+    )

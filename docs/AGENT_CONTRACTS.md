@@ -21,8 +21,29 @@ The agent must always follow these rules:
 
 ## Core Tools
 
+The first agent is built by `backend/agent.py:create_expense_agent` using
+LangChain's `create_agent` and `CopilotKitMiddleware`. It currently exposes only
+`add_expense`; reads, analytics, corrections, and deletion remain future tools.
+The centralized prompt receives the backend's current Europe/Berlin date at
+each model call. Fuel purchases map to the seeded `transport` category, not a
+separate `fuel` category. Frontend context is not trusted user identity or proof
+of persistence. Durable conversation state and the AG-UI endpoint are deferred.
+
 ### `add_expense`
 Purpose: create one expense.
+
+Implemented in `backend/tools/expenses.py` as an async LangChain tool. It
+currently uses the same seeded demo user as REST; it does not accept `user_id`.
+Category names resolve to that user's category IDs before calling the shared
+expense service. Call with `await add_expense.ainvoke({...})` using the input
+below. The date must already be resolved; this tool does not interpret relative dates.
+
+Amounts must be decimal strings with at most two decimal places and fit
+`NUMERIC(12,2)`. Invalid arguments raise Pydantic validation errors before any
+write. Unknown categories return `CATEGORY_NOT_FOUND`; database errors return
+`EXPENSE_WRITE_FAILED`, without confirming success. A write error can have an
+uncertain outcome (for example, a refresh failure after commit): do not retry
+automatically. Idempotency and authenticated context are not implemented yet.
 
 Input contract:
 
