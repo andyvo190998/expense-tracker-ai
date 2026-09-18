@@ -11,7 +11,12 @@ from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 Session = Annotated[AsyncSession, Depends(get_db)]
-DEMO_USER_ID = "demo-user"
+DEMO_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
+async def require_category(category_id: uuid.UUID, session: Session) -> None:
+    if not await services.category_exists(session, DEMO_USER_ID, category_id):
+        raise HTTPException(status_code=404, detail="Category not found")
 
 
 async def require_expense(expense_id: uuid.UUID, session: Session) -> Expense:
@@ -23,6 +28,7 @@ async def require_expense(expense_id: uuid.UUID, session: Session) -> Expense:
 
 @router.post("", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
 async def create(data: ExpenseCreate, session: Session) -> Expense:
+    await require_category(data.category_id, session)
     return await services.create_expense(session, DEMO_USER_ID, data)
 
 
@@ -41,6 +47,8 @@ async def update(
     expense_id: uuid.UUID, data: ExpenseUpdate, session: Session
 ) -> Expense:
     expense = await require_expense(expense_id, session)
+    if "category_id" in data.model_fields_set and data.category_id is not None:
+        await require_category(data.category_id, session)
     return await services.update_expense(session, expense, data)
 
 
