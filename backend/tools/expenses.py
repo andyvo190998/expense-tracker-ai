@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import services
@@ -28,6 +28,19 @@ class AddExpenseInput(BaseModel):
             # Pydantic wraps ValueError as validation feedback; TypeError escapes it.
             raise ValueError('amount must be a decimal string, e.g. "30.00"')  # noqa: TRY004
         return value
+
+
+class GetTotalExpensesInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: date
+    end_date: date
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
 
 
 @tool(args_schema=AddExpenseInput)
@@ -78,4 +91,55 @@ async def add_expense(
             "status": "error",
             "code": "EXPENSE_WRITE_FAILED",
             "message": "Could not confirm the write. Check saved expenses before retrying.",
+        }
+
+
+@tool(args_schema=GetTotalExpensesInput)
+async def get_total_expenses(start_date: date, end_date: date) -> dict[str, object]:
+    """Return the exact EUR expense total for an inclusive YYYY-MM-DD range."""
+    try:
+        async with SessionLocal() as session:
+            total = await services.get_total_expenses(
+                session, DEMO_USER_ID, start_date, end_date
+            )
+            return {
+                "status": "success",
+                "total": f"{total:.2f}",
+                "currency": "EUR",
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+            }
+    except SQLAlchemyError:
+        return {
+            "status": "error",
+            "code": "EXPENSE_QUERY_FAILED",
+            "message": "Could not retrieve the expense total.",
+        }
+
+
+@tool(args_schema=GetTotalExpensesInput)
+async def get_spending_by_category(
+    start_date: date, end_date: date
+) -> dict[str, object]:
+    """Return exact EUR spending grouped by category for an inclusive date range."""
+    try:
+        async with SessionLocal() as session:
+            rows = await services.get_spending_by_category(
+                session, DEMO_USER_ID, start_date, end_date
+            )
+            return {
+                "status": "success",
+                "currency": "EUR",
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "items": [
+                    {"category": category, "amount": f"{amount:.2f}"}
+                    for category, amount in rows
+                ],
+            }
+    except SQLAlchemyError:
+        return {
+            "status": "error",
+            "code": "EXPENSE_QUERY_FAILED",
+            "message": "Could not retrieve spending by category.",
         }

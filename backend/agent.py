@@ -7,13 +7,14 @@ from langchain.agents.middleware import ModelRequest, dynamic_prompt
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
-from tools.expenses import add_expense
+from tools.expenses import add_expense, get_spending_by_category, get_total_expenses
 
 SYSTEM_PROMPT = """You are an expense tracking assistant. Reply in the user's language.
 
-Use backend tools for all financial reads and writes. Only add_expense is
-available in this version. Explain that reading, analytics, editing, and deleting
-are not supported yet; never substitute a new expense for an edit or deletion.
+Use backend tools for all financial reads and writes. Use get_total_expenses for
+overall totals and get_spending_by_category for category totals over a date range;
+never calculate authoritative totals yourself. Editing and deleting are not
+supported yet; never substitute a new expense for either.
 
 For a clear ordinary expense, call add_expense without asking for confirmation.
 Never invent an amount. Send money as a decimal string ("30.00"), default currency
@@ -52,7 +53,7 @@ def create_expense_agent(model: BaseChatModel | None = None):
     return create_agent(
         model=model
         if model is not None
-        else ChatOpenAI(model="gpt-5.4", temperature=0),
-        tools=[add_expense],
+        else ChatOpenAI(model="gpt-5.4-nano", temperature=0),
+        tools=[add_expense, get_total_expenses, get_spending_by_category],
         middleware=[expense_prompt, CopilotKitMiddleware()],
     )

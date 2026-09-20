@@ -31,7 +31,8 @@ asyncio.run(main())
 PY
 ```
 
-Only creation is implemented. No AG-UI HTTP endpoint, frontend, durable
+Creation, exact EUR totals, and grouped category totals by inclusive date range
+are implemented. No AG-UI HTTP endpoint, frontend, durable
 conversation checkpointer, or authentication is wired yet. Each invocation
 needs its own message history; do not share histories between users. The prompt
 requests truthful confirmations, but deterministic tests do not prove a live

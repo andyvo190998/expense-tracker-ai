@@ -1,6 +1,8 @@
 import uuid
+from datetime import date
+from decimal import Decimal
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Category, Expense
@@ -73,3 +75,36 @@ async def find_category_by_name(
     return await session.scalar(
         select(Category).where(Category.user_id == user_id, Category.name == name)
     )
+
+
+async def get_total_expenses(
+    session: AsyncSession, user_id: uuid.UUID, start_date: date, end_date: date
+) -> Decimal:
+    return await session.scalar(
+        select(func.coalesce(func.sum(Expense.amount), 0)).where(
+            Expense.user_id == user_id,
+            Expense.currency == "EUR",
+            Expense.spent_at >= start_date,
+            Expense.spent_at <= end_date,
+        )
+    )
+
+
+async def get_spending_by_category(
+    session: AsyncSession, user_id: uuid.UUID, start_date: date, end_date: date
+) -> list[tuple[str, Decimal]]:
+    total = func.sum(Expense.amount)
+    rows = await session.execute(
+        select(Category.name, total)
+        .join(Expense, Expense.category_id == Category.id)
+        .where(
+            Expense.user_id == user_id,
+            Category.user_id == user_id,
+            Expense.currency == "EUR",
+            Expense.spent_at >= start_date,
+            Expense.spent_at <= end_date,
+        )
+        .group_by(Category.name)
+        .order_by(total.desc())
+    )
+    return list(rows.tuples())

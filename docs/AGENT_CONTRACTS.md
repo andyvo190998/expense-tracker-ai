@@ -111,7 +111,9 @@ Contract:
 ### `get_total_expenses`
 Purpose: return exact total for a date range and optional filters.
 
-Implement aggregate calculations in SQL/backend code.
+Implemented as an inclusive date-range query for the demo user's EUR expenses.
+The database calculates the value with `SUM`; expense rows are not loaded into
+the agent context. Invalid ranges fail validation before querying.
 
 Recommended result:
 
@@ -126,6 +128,10 @@ Recommended result:
 
 ### `get_spending_by_category`
 Purpose: exact category aggregation for a requested period.
+
+Implemented as one database query joining the normalized category table, then
+grouping and ordering by `SUM(expenses.amount)`. It currently reports EUR for
+the demo user over an inclusive date range.
 
 Recommended result:
 
