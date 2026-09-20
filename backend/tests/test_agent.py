@@ -17,6 +17,17 @@ from app.models import Category, Expense, User
 from tools import expenses
 
 
+def test_expense_agent_agui_endpoint_is_registered():
+    from fastapi.testclient import TestClient
+
+    from main import app
+
+    response = TestClient(app).get("/agents/expense/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "agent": {"name": "expense_agent"}}
+
+
 class RecordingModel(FakeMessagesListChatModel):
     calls: list[list[BaseMessage]] = Field(default_factory=list)
     tool_names: list[str] = Field(default_factory=list)

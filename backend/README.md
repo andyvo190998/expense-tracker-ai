@@ -9,6 +9,16 @@ not require an API key. The system prompt lives in `agent.py`; a dynamic prompt
 adds the current date in `Europe/Berlin` before each model call, before CopilotKit
 appends frontend context and tools.
 
+FastAPI exposes that graph over AG-UI at `POST /agents/expense`; its health
+endpoint is `GET /agents/expense/health`. Start it with:
+
+```bash
+uv run --env-file .env uvicorn main:app --reload
+```
+
+Point the CopilotKit runtime's remote agent URL at
+`http://localhost:8000/agents/expense` and use the agent name `expense_agent`.
+
 To try it, start PostgreSQL and apply the migrations/seeds with
 `uv run alembic upgrade head`. Put `OPENAI_API_KEY` in the local `backend/.env`
 (never commit it). From `backend/`, this example calls OpenAI and writes a real

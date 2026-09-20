@@ -57,3 +57,6 @@ def create_expense_agent(model: BaseChatModel | None = None):
         tools=[add_expense, get_total_expenses, get_spending_by_category],
         middleware=[expense_prompt, CopilotKitMiddleware()],
     )
+
+
+graph = create_expense_agent()
