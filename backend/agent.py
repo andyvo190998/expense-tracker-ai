@@ -6,6 +6,8 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRequest, dynamic_prompt
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import InMemorySaver
 
 from tools.expenses import add_expense, get_spending_by_category, get_total_expenses
 
@@ -48,7 +50,10 @@ def expense_prompt(request: ModelRequest) -> str:
     return f"{SYSTEM_PROMPT}\nBackend current date: {today}. Timezone: Europe/Berlin."
 
 
-def create_expense_agent(model: BaseChatModel | None = None):
+def create_expense_agent(
+    model: BaseChatModel | None = None,
+    checkpointer: BaseCheckpointSaver | None = None,
+):
     """Build the graph on demand; OPENAI_API_KEY is only needed for the real model."""
     return create_agent(
         model=model
@@ -56,7 +61,8 @@ def create_expense_agent(model: BaseChatModel | None = None):
         else ChatOpenAI(model="gpt-5.4-nano", temperature=0),
         tools=[add_expense, get_total_expenses, get_spending_by_category],
         middleware=[expense_prompt, CopilotKitMiddleware()],
+        checkpointer=checkpointer,
     )
 
 
-graph = create_expense_agent()
+graph = create_expense_agent(checkpointer=InMemorySaver())
