@@ -1,223 +1,170 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Label, Pie, PieChart, Sector } from "recharts";
 import type { PieSectorDataItem } from "recharts/types/polar/Pie";
+
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	ChartContainer,
-	ChartStyle,
 	ChartTooltip,
 	ChartTooltipContent,
+	type ChartConfig,
 } from "@/components/ui/chart";
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { currentMonth, monthRange } from "@/lib/expense-period";
 
-const revenueData = [
-	{ category: "subscriptions", value: 45, amount: 24500, fill: "var(--color-subscriptions)" },
-	{ category: "sales", value: 30, amount: 16300, fill: "var(--color-sales)" },
-	{ category: "services", value: 15, amount: 8150, fill: "var(--color-services)" },
-	{ category: "partnerships", value: 10, amount: 5430, fill: "var(--color-partnerships)" },
-];
-
-const chartConfig = {
-	revenue: {
-		label: "Revenue",
-	},
-	amount: {
-		label: "Amount",
-	},
-	subscriptions: {
-		label: "Subscriptions",
-		color: "var(--chart-1)",
-	},
-	sales: {
-		label: "One-time Sales",
-		color: "var(--chart-2)",
-	},
-	services: {
-		label: "Services",
-		color: "var(--chart-3)",
-	},
-	partnerships: {
-		label: "Partnerships",
-		color: "var(--chart-4)",
-	},
+type CategoryExpenses = {
+	currency: string;
+	start_date: string;
+	end_date: string;
+	items: { category: string; amount: string }[];
 };
 
+async function getCategoryExpenses(month: string): Promise<CategoryExpenses> {
+	const { startDate, endDate } = monthRange(month);
+	const query = new URLSearchParams({ start_date: startDate, end_date: endDate });
+	const response = await fetch(`/api/expenses/by-category?${query}`);
+	if (!response.ok) throw new Error("Could not load category expenses");
+	return response.json() as Promise<CategoryExpenses>;
+}
+
 export function RevenueBreakdown() {
-	const id = "revenue-breakdown";
-	const [activeCategory, setActiveCategory] = React.useState("sales");
-
-	const activeIndex = React.useMemo(() => {
-		const index = revenueData.findIndex((item) => item.category === activeCategory);
-		return index === -1 ? 0 : index;
-	}, [activeCategory]);
-
-	const categories = React.useMemo(() => revenueData.map((item) => item.category), []);
+	const { i18n, t } = useTranslation();
+	const [month, setMonth] = React.useState(currentMonth);
+	const [activeCategory, setActiveCategory] = React.useState("");
+	const query = useQuery({
+		queryKey: ["expenses", "by-category", month],
+		queryFn: () => getCategoryExpenses(month),
+	});
+	const locale = i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US";
+	const monthOptions = React.useMemo(() => {
+		const [year, monthNumber] = currentMonth().split("-").map(Number);
+		const formatter = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" });
+		return Array.from({ length: 12 }, (_, offset) => {
+			const date = new Date(year, monthNumber - 1 - offset, 1);
+			return { value: currentMonth(date), label: formatter.format(date) };
+		});
+	}, [locale]);
+	const chartData = query.data?.items.map((item, index) => ({
+		category: item.category,
+		amount: Number(item.amount),
+		fill: `var(--chart-${index % 5 + 1})`,
+	})) ?? [];
+	const activeIndex = Math.max(0, chartData.findIndex((item) => item.category === activeCategory));
+	const activeItem = chartData[activeIndex];
+	const currency = new Intl.NumberFormat(locale, {
+		style: "currency",
+		currency: query.data?.currency ?? "EUR",
+	});
+	const chartConfig = {
+		amount: { label: t("dashboard.categoryBreakdown.amount") },
+	} satisfies ChartConfig;
 
 	return (
-		<Card data-chart={id} className="flex flex-col cursor-pointer">
-			<ChartStyle id={id} config={chartConfig} />
-			<CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 pb-2">
-				<div>
-					<CardTitle>Phân loại chi tiêu</CardTitle>
-					{/* <CardDescription>Revenue distribution by source</CardDescription> */}
+		<Card>
+			<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<div className="flex flex-col gap-1">
+					<CardTitle>{t("dashboard.categoryBreakdown.title")}</CardTitle>
+					<CardDescription>{t("dashboard.categoryBreakdown.description")}</CardDescription>
 				</div>
-				<div className="flex items-center space-x-2">
-					<Select value={activeCategory} onValueChange={setActiveCategory}>
-						<SelectTrigger
-							className="w-43.75 rounded-lg cursor-pointer"
-							aria-label="Select a category"
-						>
-							<SelectValue placeholder="Select category" />
-						</SelectTrigger>
-						<SelectContent align="end" className="rounded-lg">
-							{categories.map((key) => {
-								const config = chartConfig[key as keyof typeof chartConfig];
-
-								if (!config) {
-									return null;
-								}
-
-								return (
-									<SelectItem
-										key={key}
-										value={key}
-										className="rounded-md [&_span]:flex cursor-pointer"
-									>
-										<div className="flex items-center gap-2">
-											<span
-												className="flex h-3 w-3 shrink-0 "
-												style={{
-													backgroundColor: `var(--color-${key})`,
-												}}
-											/>
-											{config?.label}
-										</div>
-									</SelectItem>
-								);
-							})}
-						</SelectContent>
-					</Select>
-					<Button variant="outline" className="cursor-pointer">
-						Export
-					</Button>
-				</div>
+				<Select value={month} onValueChange={setMonth}>
+					<SelectTrigger className="w-48" aria-label={t("dashboard.categoryBreakdown.month")}>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent align="end">
+						<SelectGroup>
+							{monthOptions.map((option) => (
+								<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
 			</CardHeader>
-			<CardContent className="flex flex-1 justify-center">
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-					<div className="flex justify-center">
-						<ChartContainer
-							id={id}
-							config={chartConfig}
-							className="mx-auto aspect-square w-full max-w-[300px]"
-						>
-							<PieChart>
+			<CardContent>
+				{query.isPending ? (
+					<Skeleton className="h-80 w-full" />
+				) : query.isError ? (
+					<div className="flex h-80 flex-col items-center justify-center gap-3 text-center">
+						<p className="text-muted-foreground">{t("dashboard.categoryBreakdown.error")}</p>
+						<Button variant="outline" onClick={() => void query.refetch()}>
+							{t("dashboard.categoryBreakdown.retry")}
+						</Button>
+					</div>
+				) : chartData.length === 0 ? (
+					<p className="flex h-80 items-center justify-center text-muted-foreground">
+						{t("dashboard.categoryBreakdown.empty")}
+					</p>
+				) : (
+					<div className="grid items-center gap-6 lg:grid-cols-2">
+						<ChartContainer config={chartConfig} className="mx-auto aspect-square w-full max-w-75">
+							<PieChart accessibilityLayer>
 								<ChartTooltip
 									cursor={false}
-									content={<ChartTooltipContent hideLabel />}
+									content={<ChartTooltipContent hideLabel formatter={(value) => currency.format(Number(value))} />}
 								/>
 								<Pie
-									data={revenueData}
+									data={chartData}
 									dataKey="amount"
 									nameKey="category"
 									innerRadius={60}
 									strokeWidth={5}
-									activeShape={({
-										outerRadius = 0,
-										...props
-									}: PieSectorDataItem) => (
+									onClick={(item) => setActiveCategory(item.category)}
+									activeShape={({ outerRadius = 0, ...props }: PieSectorDataItem) => (
 										<g>
 											<Sector {...props} outerRadius={outerRadius + 10} />
-											<Sector
-												{...props}
-												outerRadius={outerRadius + 25}
-												innerRadius={outerRadius + 12}
-											/>
+											<Sector {...props} outerRadius={outerRadius + 25} innerRadius={outerRadius + 12} />
 										</g>
 									)}
 								>
 									<Label
 										content={({ viewBox }) => {
-											if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-												return (
-													<text
-														x={viewBox.cx}
-														y={viewBox.cy}
-														textAnchor="middle"
-														dominantBaseline="middle"
-													>
-														<tspan
-															x={viewBox.cx}
-															y={viewBox.cy}
-															className="fill-foreground text-3xl font-bold"
-														>
-															$
-															{(
-																revenueData[activeIndex].amount /
-																1000
-															).toFixed(0)}
-															K
-														</tspan>
-														<tspan
-															x={viewBox.cx}
-															y={(viewBox.cy || 0) + 24}
-															className="fill-muted-foreground"
-														>
-															Revenue
-														</tspan>
-													</text>
-												);
-											}
+											if (!activeItem || !viewBox || !("cx" in viewBox) || !("cy" in viewBox)) return null;
+											return (
+												<text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+													<tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold">
+														{currency.format(activeItem.amount)}
+													</tspan>
+													<tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 24} className="fill-muted-foreground">
+														{activeItem.category}
+													</tspan>
+												</text>
+											);
 										}}
 									/>
 								</Pie>
 							</PieChart>
 						</ChartContainer>
-					</div>
-
-					<div className="flex flex-col justify-center space-y-4">
-						{revenueData.map((item, index) => {
-							const config = chartConfig[item.category as keyof typeof chartConfig];
-							const isActive = index === activeIndex;
-
-							return (
-								<div
+						<div className="flex flex-col gap-2">
+							{chartData.map((item, index) => (
+								<Button
 									key={item.category}
-									className={`flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer ${
-										isActive ? "bg-muted" : "hover:bg-muted/50"
-									}`}
+									type="button"
+									variant={index === activeIndex ? "secondary" : "ghost"}
+									className="h-auto justify-between p-3"
 									onClick={() => setActiveCategory(item.category)}
 								>
-									<div className="flex items-center gap-3">
-										<span
-											className="flex h-3 w-3 shrink-0 rounded-full"
-											style={{
-												backgroundColor: `var(--color-${item.category})`,
-											}}
-										/>
-										<span className="font-medium">{config?.label}</span>
-									</div>
-									<div className="text-right">
-										<div className="font-bold">
-											${(item.amount / 1000).toFixed(1)}K
-										</div>
-										<div className="text-sm text-muted-foreground">
-											{item.value}%
-										</div>
-									</div>
-								</div>
-							);
-						})}
+									<span className="flex items-center gap-3">
+										<span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />
+										<span className="font-medium">{item.category}</span>
+									</span>
+									<span className="font-semibold tabular-nums">{currency.format(item.amount)}</span>
+								</Button>
+							))}
+						</div>
 					</div>
-				</div>
+				)}
 			</CardContent>
 		</Card>
 	);

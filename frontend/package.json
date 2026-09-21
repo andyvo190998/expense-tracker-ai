@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/i18n/i18n.test.ts",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/i18n/i18n.test.ts src/lib/expense-period.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

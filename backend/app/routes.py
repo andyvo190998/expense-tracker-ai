@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -8,7 +9,12 @@ from app import services
 from app.context import DEMO_USER_ID
 from app.database import get_db
 from app.models import Expense
-from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
+from app.schemas import (
+    CategoryExpenseResponse,
+    ExpenseCreate,
+    ExpenseResponse,
+    ExpenseUpdate,
+)
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 Session = Annotated[AsyncSession, Depends(get_db)]
@@ -35,6 +41,26 @@ async def create(data: ExpenseCreate, session: Session) -> Expense:
 @router.get("", response_model=list[ExpenseResponse])
 async def list_all(session: Session) -> list[Expense]:
     return await services.list_expenses(session, DEMO_USER_ID)
+
+
+@router.get("/by-category", response_model=CategoryExpenseResponse)
+async def list_by_category(
+    session: Session, start_date: date, end_date: date
+) -> CategoryExpenseResponse:
+    if end_date < start_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="end_date must be on or after start_date",
+        )
+    rows = await services.get_spending_by_category(
+        session, DEMO_USER_ID, start_date, end_date
+    )
+    return CategoryExpenseResponse(
+        currency="EUR",
+        start_date=start_date,
+        end_date=end_date,
+        items=[{"category": category, "amount": amount} for category, amount in rows],
+    )
 
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)

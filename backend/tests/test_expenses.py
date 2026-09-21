@@ -220,6 +220,123 @@ def test_category_must_belong_to_expense_user(tmp_path):
         asyncio.run(engine.dispose())
 
 
+def test_expenses_by_category_aggregates_only_requested_period_and_user(tmp_path):
+    engine = sqlite_engine(tmp_path / "category-summary.db")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    groceries_id = uuid.uuid4()
+    transport_id = uuid.uuid4()
+    unused_id = uuid.uuid4()
+
+    async def prepare_database():
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            session.add_all(
+                [
+                    User(id=DEMO_USER_ID, email="demo@example.com", name="Demo"),
+                    User(
+                        id=FOREIGN_USER_ID,
+                        email="foreign@example.com",
+                        name="Foreign",
+                    ),
+                ]
+            )
+            await session.flush()
+            session.add_all(
+                [
+                    Category(
+                        id=groceries_id,
+                        user_id=DEMO_USER_ID,
+                        name="groceries",
+                    ),
+                    Category(
+                        id=transport_id,
+                        user_id=DEMO_USER_ID,
+                        name="transport",
+                    ),
+                    Category(
+                        id=unused_id,
+                        user_id=DEMO_USER_ID,
+                        name="utilities",
+                    ),
+                    Category(
+                        id=FOREIGN_CATEGORY_ID,
+                        user_id=FOREIGN_USER_ID,
+                        name="groceries",
+                    ),
+                ]
+            )
+            await session.flush()
+            session.add_all(
+                [
+                    Expense(
+                        user_id=DEMO_USER_ID,
+                        amount=Decimal("30.00"),
+                        category_id=groceries_id,
+                        spent_at=date(2026, 9, 1),
+                    ),
+                    Expense(
+                        user_id=DEMO_USER_ID,
+                        amount=Decimal("12.50"),
+                        category_id=groceries_id,
+                        spent_at=date(2026, 9, 30),
+                    ),
+                    Expense(
+                        user_id=DEMO_USER_ID,
+                        amount=Decimal("20.00"),
+                        category_id=transport_id,
+                        spent_at=date(2026, 9, 15),
+                    ),
+                    Expense(
+                        user_id=DEMO_USER_ID,
+                        amount=Decimal("99.00"),
+                        category_id=groceries_id,
+                        spent_at=date(2026, 8, 31),
+                    ),
+                    Expense(
+                        user_id=FOREIGN_USER_ID,
+                        amount=Decimal("500.00"),
+                        category_id=FOREIGN_CATEGORY_ID,
+                        spent_at=date(2026, 9, 15),
+                    ),
+                ]
+            )
+            await session.commit()
+
+    async def override_get_db():
+        async with sessions() as session:
+            yield session
+
+    asyncio.run(prepare_database())
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/expenses/by-category",
+                params={"start_date": "2026-09-01", "end_date": "2026-09-30"},
+            )
+            assert response.status_code == 200
+            assert response.json() == {
+                "currency": "EUR",
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-30",
+                "items": [
+                    {"category": "groceries", "amount": "42.50"},
+                    {"category": "transport", "amount": "20.00"},
+                ],
+            }
+
+            invalid = client.get(
+                "/expenses/by-category",
+                params={"start_date": "2026-10-01", "end_date": "2026-09-30"},
+            )
+            assert invalid.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+        asyncio.run(engine.dispose())
+
+
 def test_expense_input_validation():
     with TestClient(app) as client:
         invalid_create = client.post(

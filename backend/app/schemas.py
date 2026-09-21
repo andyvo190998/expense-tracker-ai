@@ -42,3 +42,15 @@ class ExpenseResponse(ExpenseCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+
+
+class CategoryExpenseItem(BaseModel):
+    category: str
+    amount: Decimal
+
+
+class CategoryExpenseResponse(BaseModel):
+    currency: str
+    start_date: date
+    end_date: date
+    items: list[CategoryExpenseItem]

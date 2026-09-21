@@ -31,6 +31,15 @@ export const resources = {
 				target: "Mục tiêu",
 				lastMonths: "{{count}} tháng qua",
 				export: "Xuất",
+				categoryBreakdown: {
+					title: "Chi tiêu theo danh mục",
+					description: "Tổng chi tiêu trong tháng đã chọn",
+					amount: "Số tiền",
+					month: "Chọn tháng",
+					empty: "Không có chi tiêu trong tháng này.",
+					error: "Không thể tải chi tiêu theo danh mục.",
+					retry: "Thử lại",
+				},
 			},
 			chat: {
 				header: "Trợ lý chi tiêu",
@@ -70,6 +79,15 @@ export const resources = {
 				target: "Target",
 				lastMonths: "Last {{count}} months",
 				export: "Export",
+				categoryBreakdown: {
+					title: "Expenses by category",
+					description: "Total spending for the selected month",
+					amount: "Amount",
+					month: "Select month",
+					empty: "No expenses for this month.",
+					error: "Could not load expenses by category.",
+					retry: "Try again",
+				},
 			},
 			chat: {
 				header: "Expense assistant",
