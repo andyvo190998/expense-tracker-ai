@@ -8,6 +8,7 @@ import {
   CircleUser,
 } from "lucide-react"
 import Link from "next/link"
+import { useTranslation } from "react-i18next"
 
 import { Logo } from "@/components/logo"
 import {
@@ -36,6 +37,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const { t } = useTranslation()
 
   return (
     <SidebarMenu>
@@ -82,19 +84,19 @@ export function NavUser({
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/settings/account">
                   <CircleUser />
-                  Account
+                  {t("user.account")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/settings/billing">
                   <CreditCard />
-                  Billing
+                  {t("user.billing")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/settings/notifications">
                   <BellDot />
-                  Notifications
+                  {t("user.notifications")}
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -102,7 +104,7 @@ export function NavUser({
             <DropdownMenuItem asChild className="cursor-pointer">
               <Link href="/sign-in">
                 <LogOut />
-                Log out
+                {t("user.logout")}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

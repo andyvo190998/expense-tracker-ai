@@ -6,8 +6,11 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { CommandSearch, SearchTrigger } from "@/components/command-search"
 import { ModeToggle } from "@/components/mode-toggle"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { useTranslation } from "react-i18next"
 
 export function SiteHeader() {
+  const { t } = useTranslation()
   const [searchOpen, setSearchOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -52,7 +55,7 @@ export function SiteHeader() {
                 target="_blank"
                 className="dark:text-foreground"
               >
-                Landing Page
+                {t("header.landing")}
               </a>
             </Button>
             <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
@@ -66,6 +69,7 @@ export function SiteHeader() {
               </a>
             </Button>
             <ModeToggle />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
