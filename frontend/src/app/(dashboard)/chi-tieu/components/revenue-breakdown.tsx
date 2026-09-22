@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Label, Pie, PieChart, Sector } from "recharts";
 import type { PieSectorDataItem } from "recharts/types/polar/Pie";
@@ -23,31 +22,14 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { currentMonth, monthRange } from "@/lib/expense-period";
-
-type CategoryExpenses = {
-	currency: string;
-	start_date: string;
-	end_date: string;
-	items: { category: string; amount: string }[];
-};
-
-async function getCategoryExpenses(month: string): Promise<CategoryExpenses> {
-	const { startDate, endDate } = monthRange(month);
-	const query = new URLSearchParams({ start_date: startDate, end_date: endDate });
-	const response = await fetch(`/api/expenses/by-category?${query}`);
-	if (!response.ok) throw new Error("Could not load category expenses");
-	return response.json() as Promise<CategoryExpenses>;
-}
+import { useCategoryExpenses } from "@/hooks/use-category-expenses";
+import { currentMonth } from "@/lib/expense-period";
 
 export function RevenueBreakdown() {
 	const { i18n, t } = useTranslation();
 	const [month, setMonth] = React.useState(currentMonth);
 	const [activeCategory, setActiveCategory] = React.useState("");
-	const query = useQuery({
-		queryKey: ["expenses", "by-category", month],
-		queryFn: () => getCategoryExpenses(month),
-	});
+	const query = useCategoryExpenses(month);
 	const locale = i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US";
 	const monthOptions = React.useMemo(() => {
 		const [year, monthNumber] = currentMonth().split("-").map(Number);

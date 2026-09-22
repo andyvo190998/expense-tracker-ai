@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -57,6 +58,7 @@ async def list_by_category(
     )
     return CategoryExpenseResponse(
         currency="EUR",
+        total=sum((amount for _, amount in rows), start=Decimal(0)),
         start_date=start_date,
         end_date=end_date,
         items=[{"category": category, "amount": amount} for category, amount in rows],

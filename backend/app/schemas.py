@@ -51,6 +51,7 @@ class CategoryExpenseItem(BaseModel):
 
 class CategoryExpenseResponse(BaseModel):
     currency: str
+    total: Decimal
     start_date: date
     end_date: date
     items: list[CategoryExpenseItem]

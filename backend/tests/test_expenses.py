@@ -319,6 +319,7 @@ def test_expenses_by_category_aggregates_only_requested_period_and_user(tmp_path
             assert response.status_code == 200
             assert response.json() == {
                 "currency": "EUR",
+                "total": "62.50",
                 "start_date": "2026-09-01",
                 "end_date": "2026-09-30",
                 "items": [

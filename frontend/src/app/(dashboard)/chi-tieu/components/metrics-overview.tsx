@@ -4,12 +4,21 @@ import { TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useCategoryExpenses } from "@/hooks/use-category-expenses";
+import { currentMonth } from "@/lib/expense-period";
 
 export function MetricsOverview() {
-	const { t } = useTranslation();
+	const { i18n, t } = useTranslation();
+	const currentExpenses = useCategoryExpenses(currentMonth());
+	const currentTotal = currentExpenses.data
+		? new Intl.NumberFormat(i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US", {
+				style: "currency",
+				currency: currentExpenses.data.currency,
+			}).format(Number(currentExpenses.data.total))
+		: "—";
 	const metrics = [
 		{ title: t("dashboard.monthlyTotal"), value: "€400,00", change: "+12%", trend: "up", icon: DollarSign },
-		{ title: t("dashboard.currentTotal"), value: "€180,00", change: "+5.2%", trend: "up", icon: Users },
+		{ title: t("dashboard.currentTotal"), value: currentTotal, change: "+5.2%", trend: "up", icon: Users },
 	];
 
 	return (

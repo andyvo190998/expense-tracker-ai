@@ -35,7 +35,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			label: t("nav.dashboards"),
 			items: [
 				{ title: t("nav.dashboard1"), url: "/dashboard", icon: LayoutDashboard },
-				{ title: t("nav.dashboard2"), url: "/dashboard-2", icon: LayoutPanelLeft },
+				{ title: t("nav.dashboard2"), url: "/chi-tieu", icon: LayoutPanelLeft },
 			],
 		},
 		{
