@@ -21,13 +21,13 @@ The agent must always follow these rules:
 
 ## Core Tools
 
-The first agent is built by `backend/agent.py:create_expense_agent` using
-LangChain's `create_agent` and `CopilotKitMiddleware`. It currently exposes only
-`add_expense`; reads, analytics, corrections, and deletion remain future tools.
+The agent is built by `backend/agent.py:create_expense_agent` using LangChain's
+`create_agent` and `CopilotKitMiddleware`. It exposes create, lookup, update,
+delete, and deterministic analytics tools.
 The centralized prompt receives the backend's current Europe/Berlin date at
 each model call. Fuel purchases map to the seeded `transport` category, not a
 separate `fuel` category. Frontend context is not trusted user identity or proof
-of persistence. Durable conversation state and the AG-UI endpoint are deferred.
+of persistence. Durable conversation state and authentication are deferred.
 
 ### `add_expense`
 Purpose: create one expense.
@@ -83,6 +83,11 @@ Recommended result:
 ### `find_expenses`
 Purpose: retrieve candidate expenses for conversational queries or follow-up mutation.
 
+Implemented in `backend/tools/expenses.py`. Results are scoped to the demo user,
+ordered newest first, limited to at most 20 records, and include stable IDs plus
+category names. Supported filters are merchant text, exact category name, and an
+inclusive date range.
+
 Possible filters:
 - date range,
 - merchant,
@@ -91,6 +96,10 @@ Possible filters:
 - limit/order.
 
 Tool should return stable IDs.
+
+The agent must not guess between plausible candidates. When multiple returned
+records could match an update or deletion request, it presents distinguishing
+details and asks the user to identify or confirm the intended record.
 
 ### `update_expense`
 Purpose: patch an existing expense.
@@ -101,12 +110,22 @@ Input should contain:
 
 Do not infer an arbitrary record when multiple plausible candidates exist. Resolve candidate first.
 
+Implemented fields are merchant, amount, currency, category, spent date, and
+description. Amounts use the same strict decimal-string rules as `add_expense`.
+Category names are resolved to the current user's category ID. Normal,
+unambiguous corrections do not require confirmation; ambiguous targets do.
+
 ### `delete_expense`
 Purpose: delete an exact expense by stable ID.
 
 Contract:
 - confirmation must happen before this tool is called,
 - tool should return enough information to confirm what was deleted.
+
+Implemented in `backend/tools/expenses.py` for an exact, user-scoped expense ID.
+The result includes the deleted record snapshot. The agent must show the exact
+candidate and receive explicit confirmation in a later user message before
+calling the tool; the initial deletion request is not confirmation.
 
 ### `get_total_expenses`
 Purpose: return exact total for a date range and optional filters.

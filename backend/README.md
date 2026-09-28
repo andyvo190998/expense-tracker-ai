@@ -3,9 +3,11 @@
 ## First agent
 
 `agent.create_expense_agent()` builds a LangGraph-backed LangChain agent with
-`ChatOpenAI(model="gpt-5.4", temperature=0)`, `add_expense`, and
-`CopilotKitMiddleware`. Construction is on demand so importing the module does
-not require an API key. The system prompt lives in `agent.py`; a dynamic prompt
+`ChatOpenAI`, expense mutation and analytics tools, and `CopilotKitMiddleware`.
+It resolves natural-language update/delete targets through database lookup and
+requires explicit confirmation before deletion. Construction is on demand, so
+importing the module does not require an API key. The system prompt lives in
+`agent.py`; a dynamic prompt
 adds the current date in `Europe/Berlin` before each model call, before CopilotKit
 appends frontend context and tools.
 
@@ -41,8 +43,8 @@ asyncio.run(main())
 PY
 ```
 
-Creation, exact EUR totals, and grouped category totals by inclusive date range
-are implemented. No AG-UI HTTP endpoint, frontend, durable
+Creation, lookup, correction, confirmed deletion, exact EUR totals, and grouped
+category totals by inclusive date range are implemented. No frontend, durable
 conversation checkpointer, or authentication is wired yet. Each invocation
 needs its own message history; do not share histories between users. The prompt
 requests truthful confirmations, but deterministic tests do not prove a live

@@ -128,7 +128,13 @@ def test_agent_runs_real_tool_and_preserves_copilot_context(
             assert "2026-09-19" in model.calls[1][0].content
             assert "Europe/Berlin" in model.calls[0][0].content
             assert "expense-dashboard" in model.calls[0][0].content
-            assert {"add_expense", "show_help"} <= set(model.tool_names)
+            assert {
+                "add_expense",
+                "find_expenses",
+                "update_expense",
+                "delete_expense",
+                "show_help",
+            } <= set(model.tool_names)
             observed = next(m for m in model.calls[1] if isinstance(m, ToolMessage))
             output = json.loads(observed.content)
             assert observed.tool_call_id == "expense-call"

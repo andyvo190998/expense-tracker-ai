@@ -39,6 +39,43 @@ async def get_expense(
     )
 
 
+async def find_expenses(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    merchant: str | None = None,
+    category: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    limit: int = 10,
+) -> list[tuple[Expense, str]]:
+    statement = (
+        select(Expense, Category.name)
+        .join(
+            Category,
+            (Expense.category_id == Category.id)
+            & (Expense.user_id == Category.user_id),
+        )
+        .where(Expense.user_id == user_id)
+    )
+    if merchant is not None:
+        statement = statement.where(
+            func.lower(Expense.merchant).contains(merchant.lower(), autoescape=True)
+        )
+    if category is not None:
+        statement = statement.where(func.lower(Category.name) == category.lower())
+    if start_date is not None:
+        statement = statement.where(Expense.spent_at >= start_date)
+    if end_date is not None:
+        statement = statement.where(Expense.spent_at <= end_date)
+    rows = await session.execute(
+        statement.order_by(
+            Expense.spent_at.desc(), Expense.created_at.desc(), Expense.id.desc()
+        ).limit(limit)
+    )
+    return list(rows.tuples())
+
+
 async def update_expense(
     session: AsyncSession, expense: Expense, data: ExpenseUpdate
 ) -> Expense:

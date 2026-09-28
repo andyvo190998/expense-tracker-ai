@@ -246,3 +246,185 @@ def test_get_spending_by_category_uses_grouped_database_sum(tmp_path, monkeypatc
             await engine.dispose()
 
     asyncio.run(run())
+
+
+def test_find_then_update_expense_uses_exact_user_scoped_id(tmp_path, monkeypatch):
+    from tools import expenses
+
+    engine = sqlite_engine(tmp_path / "update-tool.db")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(expenses, "SessionLocal", sessions)
+
+    async def run():
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(Base.metadata.create_all)
+            async with sessions() as session:
+                foreign_id = uuid.uuid4()
+                session.add_all(
+                    [
+                        User(id=DEMO_USER_ID, email="demo@example.com", name="Demo"),
+                        User(id=foreign_id, email="other@example.com", name="Other"),
+                    ]
+                )
+                await session.flush()
+                groceries = Category(user_id=DEMO_USER_ID, name="groceries")
+                restaurants = Category(user_id=DEMO_USER_ID, name="restaurants")
+                foreign_category = Category(user_id=foreign_id, name="groceries")
+                session.add_all([groceries, restaurants, foreign_category])
+                await session.flush()
+                older = Expense(
+                    user_id=DEMO_USER_ID,
+                    merchant="Aldi",
+                    amount=Decimal("30.00"),
+                    currency="EUR",
+                    category_id=groceries.id,
+                    spent_at=date(2026, 9, 18),
+                )
+                newer = Expense(
+                    user_id=DEMO_USER_ID,
+                    merchant="Aldi Mitte",
+                    amount=Decimal("12.00"),
+                    currency="EUR",
+                    category_id=groceries.id,
+                    spent_at=date(2026, 9, 20),
+                )
+                foreign = Expense(
+                    user_id=foreign_id,
+                    merchant="Aldi",
+                    amount=Decimal("99.00"),
+                    currency="EUR",
+                    category_id=foreign_category.id,
+                    spent_at=date(2026, 9, 21),
+                )
+                session.add_all([older, newer, foreign])
+                await session.commit()
+                older_id, newer_id, foreign_expense_id = older.id, newer.id, foreign.id
+
+            found = await expenses.find_expenses.ainvoke(
+                {"merchant": "aldi", "limit": 10}
+            )
+            assert found["status"] == "success"
+            assert [item["id"] for item in found["expenses"]] == [
+                str(newer_id),
+                str(older_id),
+            ]
+            assert found["expenses"][0]["category"] == "groceries"
+
+            updated = await expenses.update_expense.ainvoke(
+                {
+                    "expense_id": str(older_id),
+                    "amount": "35.25",
+                    "category": "restaurants",
+                }
+            )
+            assert updated["status"] == "updated"
+            assert updated["expense"]["id"] == str(older_id)
+            assert updated["expense"]["amount"] == "35.25"
+            assert updated["expense"]["category"] == "restaurants"
+
+            missing = await expenses.update_expense.ainvoke(
+                {"expense_id": str(uuid.uuid4()), "amount": "1.00"}
+            )
+            assert missing["code"] == "EXPENSE_NOT_FOUND"
+            foreign_result = await expenses.update_expense.ainvoke(
+                {"expense_id": str(foreign_expense_id), "amount": "1.00"}
+            )
+            assert foreign_result["code"] == "EXPENSE_NOT_FOUND"
+            bad_category = await expenses.update_expense.ainvoke(
+                {"expense_id": str(older_id), "category": "missing"}
+            )
+            assert bad_category["code"] == "CATEGORY_NOT_FOUND"
+
+            with pytest.raises(ValidationError):
+                await expenses.update_expense.ainvoke(
+                    {"expense_id": str(older_id), "amount": 20.0}
+                )
+            with pytest.raises(ValidationError):
+                await expenses.update_expense.ainvoke(
+                    {"expense_id": str(older_id)}
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def test_delete_expense_returns_deleted_snapshot_and_is_user_scoped(
+    tmp_path, monkeypatch
+):
+    from tools import expenses
+
+    engine = sqlite_engine(tmp_path / "delete-tool.db")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(expenses, "SessionLocal", sessions)
+
+    async def run():
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(Base.metadata.create_all)
+            async with sessions() as session:
+                foreign_id = uuid.uuid4()
+                session.add_all(
+                    [
+                        User(id=DEMO_USER_ID, email="demo@example.com", name="Demo"),
+                        User(id=foreign_id, email="other@example.com", name="Other"),
+                    ]
+                )
+                await session.flush()
+                category = Category(user_id=DEMO_USER_ID, name="groceries")
+                foreign_category = Category(user_id=foreign_id, name="groceries")
+                session.add_all([category, foreign_category])
+                await session.flush()
+                target = Expense(
+                    user_id=DEMO_USER_ID,
+                    merchant="Lidl",
+                    amount=Decimal("18.40"),
+                    currency="EUR",
+                    category_id=category.id,
+                    spent_at=date(2026, 9, 19),
+                )
+                foreign = Expense(
+                    user_id=foreign_id,
+                    merchant="Lidl",
+                    amount=Decimal("80.00"),
+                    currency="EUR",
+                    category_id=foreign_category.id,
+                    spent_at=date(2026, 9, 19),
+                )
+                session.add_all([target, foreign])
+                await session.commit()
+                target_id, foreign_expense_id = target.id, foreign.id
+
+            result = await expenses.delete_expense.ainvoke(
+                {"expense_id": str(target_id)}
+            )
+            assert result == {
+                "status": "deleted",
+                "expense": {
+                    "id": str(target_id),
+                    "merchant": "Lidl",
+                    "description": None,
+                    "amount": "18.40",
+                    "currency": "EUR",
+                    "category_id": str(category.id),
+                    "category": "groceries",
+                    "spent_at": "2026-09-19",
+                },
+            }
+            async with sessions() as session:
+                assert await session.get(Expense, target_id) is None
+                assert await session.get(Expense, foreign_expense_id) is not None
+
+            second = await expenses.delete_expense.ainvoke(
+                {"expense_id": str(target_id)}
+            )
+            assert second["code"] == "EXPENSE_NOT_FOUND"
+            foreign_result = await expenses.delete_expense.ainvoke(
+                {"expense_id": str(foreign_expense_id)}
+            )
+            assert foreign_result["code"] == "EXPENSE_NOT_FOUND"
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
