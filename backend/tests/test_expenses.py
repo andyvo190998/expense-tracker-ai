@@ -126,9 +126,36 @@ def test_expense_crud_lifecycle(tmp_path):
             assert expense["currency"] == "EUR"
             assert expense["category_id"] == str(OTHER_CATEGORY_ID)
 
+            older = client.post(
+                "/expenses",
+                json={
+                    "merchant": "Lidl",
+                    "amount": "12.00",
+                    "category_id": str(OTHER_CATEGORY_ID),
+                    "spent_at": "2026-08-31",
+                },
+            )
+            assert older.status_code == 201
+
             listed = client.get("/expenses")
             assert listed.status_code == 200
-            assert [item["id"] for item in listed.json()] == [expense["id"]]
+            assert [item["id"] for item in listed.json()] == [
+                expense["id"],
+                older.json()["id"],
+            ]
+
+            september = client.get(
+                "/expenses",
+                params={"start_date": "2026-09-01", "end_date": "2026-09-30"},
+            )
+            assert september.status_code == 200
+            assert [item["id"] for item in september.json()] == [expense["id"]]
+
+            invalid_range = client.get(
+                "/expenses",
+                params={"start_date": "2026-10-01", "end_date": "2026-09-30"},
+            )
+            assert invalid_range.status_code == 422
             assert client.get(f"/expenses/{FOREIGN_EXPENSE_ID}").status_code == 404
 
             fetched = client.get(f"/expenses/{expense['id']}")

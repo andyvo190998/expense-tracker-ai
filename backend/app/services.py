@@ -19,11 +19,19 @@ async def create_expense(
     return expense
 
 
-async def list_expenses(session: AsyncSession, user_id: uuid.UUID) -> list[Expense]:
+async def list_expenses(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[Expense]:
+    statement = select(Expense).where(Expense.user_id == user_id)
+    if start_date is not None:
+        statement = statement.where(Expense.spent_at >= start_date)
+    if end_date is not None:
+        statement = statement.where(Expense.spent_at <= end_date)
     result = await session.scalars(
-        select(Expense)
-        .where(Expense.user_id == user_id)
-        .order_by(Expense.spent_at.desc(), Expense.created_at.desc())
+        statement.order_by(Expense.spent_at.desc(), Expense.created_at.desc())
     )
     return list(result)
 

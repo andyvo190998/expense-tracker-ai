@@ -40,6 +40,16 @@ export const resources = {
 					error: "Không thể tải chi tiêu theo danh mục.",
 					retry: "Thử lại",
 				},
+				recentTransactions: {
+					title: "Giao dịch gần đây",
+					description: "Các giao dịch trong tháng hiện tại",
+					error: "Không thể tải giao dịch.",
+					empty: "Không có giao dịch trong tháng này.",
+					expense: "Khoản chi",
+					previous: "Trước",
+					next: "Sau",
+					page: "Trang {{page}} / {{total}}",
+				},
 			},
 			chat: {
 				header: "Trợ lý chi tiêu",
@@ -87,6 +97,16 @@ export const resources = {
 					empty: "No expenses for this month.",
 					error: "Could not load expenses by category.",
 					retry: "Try again",
+				},
+				recentTransactions: {
+					title: "Recent transactions",
+					description: "Transactions from the current month",
+					error: "Could not load transactions.",
+					empty: "No transactions this month.",
+					expense: "Expense",
+					previous: "Previous",
+					next: "Next",
+					page: "Page {{page}} of {{total}}",
 				},
 			},
 			chat: {

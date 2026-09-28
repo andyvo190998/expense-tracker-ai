@@ -40,8 +40,19 @@ async def create(data: ExpenseCreate, session: Session) -> Expense:
 
 
 @router.get("", response_model=list[ExpenseResponse])
-async def list_all(session: Session) -> list[Expense]:
-    return await services.list_expenses(session, DEMO_USER_ID)
+async def list_all(
+    session: Session,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[Expense]:
+    if start_date is not None and end_date is not None and end_date < start_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="end_date must be on or after start_date",
+        )
+    return await services.list_expenses(
+        session, DEMO_USER_ID, start_date=start_date, end_date=end_date
+    )
 
 
 @router.get("/by-category", response_model=CategoryExpenseResponse)

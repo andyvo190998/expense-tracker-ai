@@ -1,130 +1,92 @@
-"use client"
+"use client";
 
-import { Eye, MoreHorizontal } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import * as React from "react";
+import { useTranslation } from "react-i18next";
 
-const transactions = [
-  {
-    id: "TXN-001",
-    customer: {
-      name: "Olivia Martin",
-      email: "olivia.martin@email.com",
-      avatar: "https://notion-avatars.netlify.app/api/avatar/?preset=female-7",
-    },
-    amount: "$1,999.00",
-    status: "completed",
-    date: "2 hours ago",
-  },
-  {
-    id: "TXN-002",
-    customer: {
-      name: "Jackson Lee",
-      email: "jackson.lee@email.com",
-      avatar: "https://notion-avatars.netlify.app/api/avatar/?preset=male-1",
-    },
-    amount: "$2,999.00",
-    status: "pending",
-    date: "5 hours ago",
-  },
-  {
-    id: "TXN-003",
-    customer: {
-      name: "Isabella Nguyen",
-      email: "isabella.nguyen@email.com",
-      avatar: "https://notion-avatars.netlify.app/api/avatar/?preset=female-2",
-    },
-    amount: "$39.00",
-    status: "completed",
-    date: "1 day ago",
-  },
-  {
-    id: "TXN-004",
-    customer: {
-      name: "William Kim",
-      email: "will@email.com",
-      avatar: "https://notion-avatars.netlify.app/api/avatar/?preset=male-5",
-    },
-    amount: "$299.00",
-    status: "failed",
-    date: "2 days ago",
-  },
-  {
-    id: "TXN-005",
-    customer: {
-      name: "Sofia Davis",
-      email: "sofia.davis@email.com",
-      avatar: "https://notion-avatars.netlify.app/api/avatar/?preset=female-4",
-    },
-    amount: "$99.00",
-    status: "completed",
-    date: "3 days ago",
-  },
-]
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useExpenses } from "@/hooks/use-expenses";
+import { currentMonth, pageItems } from "@/lib/expense-period";
 
 export function RecentTransactions() {
-  return (
-    <Card className="cursor-pointer">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>Latest customer transactions</CardDescription>
-        </div>
-        <Button variant="outline" size="sm" className="cursor-pointer">
-          <Eye className="h-4 w-4 mr-2" />
-          View All
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {transactions.map((transaction) => (
-          <div key={transaction.id} >
-            <div className="flex p-3 rounded-lg border gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={transaction.customer.avatar} alt={transaction.customer.name} />
-                <AvatarFallback>{transaction.customer.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-1 items-center flex-wrap justify-between gap-1">
-                <div className="flex items-center space-x-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{transaction.customer.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{transaction.customer.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Badge
-                    variant={
-                      transaction.status === "completed" ? "default" :
-                      transaction.status === "pending" ? "secondary" : "destructive"
-                    }
-                    className="cursor-pointer"
-                  >
-                    {transaction.status}
-                  </Badge>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{transaction.amount}</p>
-                    <p className="text-xs text-muted-foreground">{transaction.date}</p>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="cursor-pointer">View Details</DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">Download Receipt</DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">Contact Customer</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  )
+	const { i18n, t } = useTranslation();
+	const [page, setPage] = React.useState(1);
+	const query = useExpenses(currentMonth());
+	const pageCount = Math.max(1, Math.ceil((query.data?.length ?? 0) / 5));
+	const money = new Intl.NumberFormat(i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US", {
+		style: "currency",
+		currency: query.data?.[0]?.currency ?? "EUR",
+	});
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{t("dashboard.recentTransactions.title")}</CardTitle>
+				<CardDescription>{t("dashboard.recentTransactions.description")}</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-3">
+				{query.isPending ? (
+					<Skeleton className="h-48 w-full" />
+				) : query.isError ? (
+					<p className="py-12 text-center text-sm text-destructive">
+						{t("dashboard.recentTransactions.error")}
+					</p>
+				) : query.data.length === 0 ? (
+					<p className="py-12 text-center text-sm text-muted-foreground">
+						{t("dashboard.recentTransactions.empty")}
+					</p>
+				) : (
+					pageItems(query.data, page).map((transaction) => (
+						<div
+							key={transaction.id}
+							className="flex items-center justify-between gap-4 rounded-lg border p-3"
+						>
+							<div className="min-w-0">
+								<p className="truncate text-sm font-medium">
+									{transaction.merchant ?? t("dashboard.recentTransactions.expense")}
+								</p>
+								<p className="truncate text-xs text-muted-foreground">
+									{transaction.description ?? transaction.spent_at}
+								</p>
+							</div>
+							<div className="shrink-0 text-right">
+								<p className="text-sm font-medium tabular-nums">
+									{money.format(Number(transaction.amount))}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{transaction.spent_at}
+								</p>
+							</div>
+						</div>
+					))
+				)}
+				{query.data && query.data.length > 5 ? (
+					<div className="flex items-center justify-between pt-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							disabled={page === 1}
+							onClick={() => setPage((current) => current - 1)}
+						>
+							{t("dashboard.recentTransactions.previous")}
+						</Button>
+						<p className="text-sm text-muted-foreground">
+							{t("dashboard.recentTransactions.page", { page, total: pageCount })}
+						</p>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							disabled={page === pageCount}
+							onClick={() => setPage((current) => current + 1)}
+						>
+							{t("dashboard.recentTransactions.next")}
+						</Button>
+					</div>
+				) : null}
+			</CardContent>
+		</Card>
+	);
 }
