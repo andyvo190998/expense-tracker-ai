@@ -2,11 +2,11 @@
 
 import { useTranslation } from "react-i18next";
 import { MetricsOverview } from "./components/metrics-overview";
-import { SalesChart } from "./components/sales-chart";
 import { RecentTransactions } from "./components/recent-transactions";
 import { TopProducts } from "./components/top-products";
 import { CustomerInsights } from "./components/customer-insights";
 import { RevenueBreakdown } from "./components/revenue-breakdown";
+import { ExpensesChart } from "./components/expenses-chart";
 
 export default function Dashboard2() {
 	const { t } = useTranslation();
@@ -31,7 +31,7 @@ export default function Dashboard2() {
 
 				{/* Second Row - Charts in 6-6 columns */}
 				<div className="grid gap-6 grid-cols-1 @5xl:grid-cols-2">
-					<SalesChart />
+					<ExpensesChart />
 					<RevenueBreakdown />
 				</div>
 

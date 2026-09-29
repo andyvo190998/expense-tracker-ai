@@ -64,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 			)}
 
 			{/* Theme Customizer */}
-			<ThemeCustomizerTrigger onClick={() => setThemeCustomizerOpen(true)} />
+			{/* <ThemeCustomizerTrigger onClick={() => setThemeCustomizerOpen(true)} /> */}
 			<ThemeCustomizer open={themeCustomizerOpen} onOpenChange={setThemeCustomizerOpen} />
 		</SidebarProvider>
 	);

@@ -26,7 +26,7 @@ export const resources = {
 				monthlyTotal: "Tổng chi hàng tháng",
 				currentTotal: "Tổng chi hiện tại",
 				statistics: "Thống kê",
-				comparison: "So sánh chi tiêu hàng tháng",
+				comparison: "Tổng chi tiêu trong tháng so với mục tiêu €400",
 				sales: "Chi tiêu",
 				target: "Mục tiêu",
 				lastMonths: "{{count}} tháng qua",
@@ -38,6 +38,11 @@ export const resources = {
 					month: "Chọn tháng",
 					empty: "Không có chi tiêu trong tháng này.",
 					error: "Không thể tải chi tiêu theo danh mục.",
+					retry: "Thử lại",
+				},
+				dailyExpenses: {
+					month: "Chọn tháng",
+					error: "Không thể tải chi tiêu hàng ngày.",
 					retry: "Thử lại",
 				},
 				recentTransactions: {
@@ -84,7 +89,7 @@ export const resources = {
 				monthlyTotal: "Monthly spending",
 				currentTotal: "Current spending",
 				statistics: "Statistics",
-				comparison: "Monthly spending comparison",
+				comparison: "Month-to-date expenses compared with the €400 target",
 				sales: "Spending",
 				target: "Target",
 				lastMonths: "Last {{count}} months",
@@ -96,6 +101,11 @@ export const resources = {
 					month: "Select month",
 					empty: "No expenses for this month.",
 					error: "Could not load expenses by category.",
+					retry: "Try again",
+				},
+				dailyExpenses: {
+					month: "Select month",
+					error: "Could not load daily expenses.",
 					retry: "Try again",
 				},
 				recentTransactions: {
