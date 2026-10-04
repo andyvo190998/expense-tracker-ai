@@ -60,6 +60,7 @@ export function ExpensesChart() {
 		return Array.from({ length: days }, (_, index) => {
 			const day = String(index + 1).padStart(2, "0");
 			const date = `${month}-${day}`;
+			// eslint-disable-next-line react-hooks/immutability
 			monthTotal += totals.get(date) ?? 0;
 			return {
 				date,
