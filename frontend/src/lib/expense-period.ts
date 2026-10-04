@@ -17,3 +17,7 @@ export function monthRange(month: string) {
 export function pageItems<T>(items: T[], page: number) {
 	return items.slice((page - 1) * 5, page * 5);
 }
+
+export function percentageOf(value: number, total: number) {
+	return (value / total) * 100;
+}

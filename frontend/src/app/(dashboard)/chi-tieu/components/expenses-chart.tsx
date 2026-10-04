@@ -22,9 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExpenses } from "@/hooks/use-expenses";
+import { MONTHLY_TARGET } from "@/lib/expense-constants";
 import { currentMonth, monthRange } from "@/lib/expense-period";
-
-const DAILY_TARGET = 400;
 
 export function ExpensesChart() {
 	const { i18n, t } = useTranslation();
@@ -66,7 +65,7 @@ export function ExpensesChart() {
 				date,
 				day: `${day}/${month.slice(5)}`,
 				expenses: monthTotal,
-				target: DAILY_TARGET,
+				target: MONTHLY_TARGET,
 			};
 		});
 	}, [month, query.data]);

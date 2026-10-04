@@ -5,20 +5,40 @@ import { useTranslation } from "react-i18next";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCategoryExpenses } from "@/hooks/use-category-expenses";
-import { currentMonth } from "@/lib/expense-period";
+import { MONTHLY_TARGET } from "@/lib/expense-constants";
+import { currentMonth, percentageOf } from "@/lib/expense-period";
 
 export function MetricsOverview() {
 	const { i18n, t } = useTranslation();
 	const currentExpenses = useCategoryExpenses(currentMonth());
-	const currentTotal = currentExpenses.data
-		? new Intl.NumberFormat(i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US", {
-				style: "currency",
-				currency: currentExpenses.data.currency,
-			}).format(Number(currentExpenses.data.total))
-		: "—";
+	const locale = i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US";
+	const currency = new Intl.NumberFormat(locale, {
+		style: "currency",
+		currency: currentExpenses.data?.currency ?? "EUR",
+	});
+	const currentAmount = currentExpenses.data ? Number(currentExpenses.data.total) : null;
+	const currentTotal = currentExpenses.data ? currency.format(currentAmount ?? 0) : "—";
+	const currentPercentage =
+		currentAmount === null
+			? "—"
+			: `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
+					percentageOf(currentAmount, MONTHLY_TARGET),
+				)}%`;
 	const metrics = [
-		{ title: t("dashboard.monthlyTotal"), value: "€400,00", change: "+12%", trend: "up", icon: DollarSign },
-		{ title: t("dashboard.currentTotal"), value: currentTotal, change: "+5.2%", trend: "up", icon: Users },
+		{
+			title: t("dashboard.monthlyTotal"),
+			value: currency.format(MONTHLY_TARGET),
+			change: "+12%",
+			trend: "up",
+			icon: DollarSign,
+		},
+		{
+			title: t("dashboard.currentTotal"),
+			value: currentTotal,
+			change: currentPercentage,
+			trend: "up",
+			icon: Users,
+		},
 	];
 
 	return (

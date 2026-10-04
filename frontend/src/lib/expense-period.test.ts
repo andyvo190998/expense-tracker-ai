@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentMonth, monthRange, pageItems } from "./expense-period.ts";
+import { currentMonth, monthRange, pageItems, percentageOf } from "./expense-period.ts";
 
 test("builds inclusive calendar-month ranges", () => {
 	assert.deepEqual(monthRange("2026-09"), {
@@ -25,4 +25,10 @@ test("uses the current local month by default", () => {
 test("returns five items for the requested one-based page", () => {
 	assert.deepEqual(pageItems([1, 2, 3, 4, 5, 6], 1), [1, 2, 3, 4, 5]);
 	assert.deepEqual(pageItems([1, 2, 3, 4, 5, 6], 2), [6]);
+});
+
+test("calculates current spending as a percentage of the monthly total", () => {
+	assert.equal(percentageOf(20, 400), 5);
+	assert.equal(percentageOf(200, 400), 50);
+	assert.equal(percentageOf(500, 400), 125);
 });
