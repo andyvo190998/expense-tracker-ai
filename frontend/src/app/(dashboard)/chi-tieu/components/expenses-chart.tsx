@@ -103,9 +103,6 @@ export function ExpensesChart() {
 							</SelectGroup>
 						</SelectContent>
 					</Select>
-					<Button variant="outline" className="cursor-pointer">
-						{t("dashboard.export")}
-					</Button>
 				</div>
 			</CardHeader>
 			<CardContent className="p-0 pt-6">
