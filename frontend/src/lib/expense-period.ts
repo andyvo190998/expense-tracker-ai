@@ -21,3 +21,11 @@ export function pageItems<T>(items: T[], page: number) {
 export function percentageOf(value: number, total: number) {
 	return (value / total) * 100;
 }
+
+export function budgetProgress(current: number, target: number) {
+	return {
+		percentage: Math.min(100, Math.max(0, percentageOf(current, target))),
+		remaining: Math.max(0, target - current),
+		exceeded: Math.max(0, current - target),
+	};
+}

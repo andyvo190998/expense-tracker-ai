@@ -30,19 +30,19 @@ export default function Dashboard2() {
 				<MetricsOverview />
 
 				{/* Second Row - Charts in 6-6 columns */}
-				<div className="grid gap-6 grid-cols-1 @5xl:grid-cols-2">
+				{/* <div className="grid gap-6 grid-cols-1 @5xl:grid-cols-2">
 					<ExpensesChart />
-					<RevenueBreakdown />
-				</div>
+				</div> */}
 
 				{/* Third Row - Two Column Layout */}
 				<div className="grid gap-6 grid-cols-1 @5xl:grid-cols-2">
 					<RecentTransactions />
-					<TopProducts />
+					<RevenueBreakdown />
+					{/* <TopProducts /> */}
 				</div>
 
 				{/* Fourth Row - Customer Insights and Team Performance */}
-				<CustomerInsights />
+				{/* <CustomerInsights /> */}
 			</div>
 		</div>
 	);

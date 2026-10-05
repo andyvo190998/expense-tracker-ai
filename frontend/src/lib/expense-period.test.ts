@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentMonth, monthRange, pageItems, percentageOf } from "./expense-period.ts";
+import {
+	budgetProgress,
+	currentMonth,
+	monthRange,
+	pageItems,
+	percentageOf,
+} from "./expense-period.ts";
 
 test("builds inclusive calendar-month ranges", () => {
 	assert.deepEqual(monthRange("2026-09"), {
@@ -31,4 +37,20 @@ test("calculates current spending as a percentage of the monthly total", () => {
 	assert.equal(percentageOf(20, 400), 5);
 	assert.equal(percentageOf(200, 400), 50);
 	assert.equal(percentageOf(500, 400), 125);
+});
+
+test("reports the amount remaining and uncapped spending percentage", () => {
+	assert.deepEqual(budgetProgress(125, 500), {
+		percentage: 25,
+		remaining: 375,
+		exceeded: 0,
+	});
+});
+
+test("caps visual progress and reports the amount over target", () => {
+	assert.deepEqual(budgetProgress(625, 500), {
+		percentage: 100,
+		remaining: 0,
+		exceeded: 125,
+	});
 });
