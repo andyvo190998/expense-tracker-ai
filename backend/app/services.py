@@ -1,11 +1,11 @@
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Category, Expense
+from app.models import Category, Expense, RefreshToken, User
 from app.schemas import ExpenseCreate, ExpenseUpdate
 
 
@@ -153,3 +153,30 @@ async def get_spending_by_category(
         .order_by(total.desc())
     )
     return list(rows.tuples())
+
+
+async def list_users(
+    session: AsyncSession, *, offset: int, limit: int
+) -> tuple[list[User], int]:
+    users = list(
+        await session.scalars(
+            select(User).order_by(User.created_at, User.id).offset(offset).limit(limit)
+        )
+    )
+    total = await session.scalar(select(func.count(User.id)))
+    return users, total or 0
+
+
+async def set_user_active(
+    session: AsyncSession, user: User, *, is_active: bool
+) -> User:
+    user.is_active = is_active
+    if not is_active:
+        await session.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=datetime.now(UTC))
+        )
+    await session.commit()
+    await session.refresh(user)
+    return user

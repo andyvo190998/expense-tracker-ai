@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Logo } from "@/components/logo";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
+import { useAuth } from "@/contexts/auth-context";
 import {
 	Sidebar,
 	SidebarContent,
@@ -26,18 +27,21 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const user = { name: "ShadcnStore", email: "store@example.com", avatar: "" };
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { t } = useTranslation();
+	const { user } = useAuth();
 	const navGroups = [
-		{
+		...(user?.role === "merchant" ? [{
 			label: t("nav.dashboards"),
 			items: [
 				{ title: t("nav.dashboard1"), url: "/dashboard", icon: LayoutDashboard },
 				{ title: t("nav.dashboard2"), url: "/chi-tieu", icon: LayoutPanelLeft },
 			],
-		},
+		}] : []),
+		...(user?.role === "admin" ? [{
+			label: "Administration",
+			items: [{ title: "Users", url: "/admin/users", icon: Users }],
+		}] : []),
 		{
 			label: t("nav.apps"),
 			items: [
@@ -75,7 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				))}
 			</SidebarContent>
 			<SidebarFooter>
-				<NavUser user={user} />
+				{user ? <NavUser user={{ ...user, avatar: "" }} /> : null}
 			</SidebarFooter>
 		</Sidebar>
 	);

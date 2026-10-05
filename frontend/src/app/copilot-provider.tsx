@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { createExpenseToolResultTracker } from "./expense-cache-invalidation";
+import { useAuth } from "@/contexts/auth-context";
 
 function ExpenseCacheInvalidator() {
 	const { agent, isReady } = useAgent({ agentId: "expense_agent" });
@@ -34,10 +35,12 @@ function ExpenseCacheInvalidator() {
 export function CopilotProvider({ children }: { children: ReactNode }) {
 	const [queryClient] = useState(() => new QueryClient());
 	const { t } = useTranslation();
+	const { status, user } = useAuth();
+	const merchant = status === "authenticated" && user?.role === "merchant";
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<CopilotKitProvider runtimeUrl="/api/copilotkit" agentId="expense_agent">
+			{merchant ? <CopilotKitProvider runtimeUrl="/api/copilotkit" agentId="expense_agent">
 				<ExpenseCacheInvalidator />
 				{children}
 				<CopilotPopup
@@ -48,7 +51,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
 						chatInputPlaceholder: t("chat.placeholder"),
 					}}
 				/>
-			</CopilotKitProvider>
+			</CopilotKitProvider> : children}
 		</QueryClientProvider>
 	);
 }

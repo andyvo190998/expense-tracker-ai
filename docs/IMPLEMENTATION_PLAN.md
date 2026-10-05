@@ -135,12 +135,15 @@ Tasks:
 ## Milestone 9 — Authentication
 Goal: support multiple users safely.
 
-Tasks:
-- add auth provider,
-- pass authenticated identity to backend,
-- scope every query/mutation by user,
-- remove demo/static user IDs,
-- add isolation tests.
+Status: implemented; PostgreSQL migration/concurrency verification remains an environment gate when Docker Compose is available.
+
+Implemented:
+- self-hosted email/password authentication with Argon2id,
+- short-lived access JWT and rotating refresh cookies,
+- CSRF protection and role gates,
+- authenticated identity propagation to REST and agent tools,
+- strict user scoping and isolation tests,
+- admin account listing and activation/deactivation.
 
 Do not deploy publicly with shared unscoped data.
 

@@ -27,13 +27,15 @@ delete, and deterministic analytics tools.
 The centralized prompt receives the backend's current Europe/Berlin date at
 each model call. Fuel purchases map to the seeded `transport` category, not a
 separate `fuel` category. Frontend context is not trusted user identity or proof
-of persistence. Durable conversation state and authentication are deferred.
+of persistence. The AG-UI endpoint requires a merchant access cookie and binds
+the verified principal in request-local context. Every tool reads that context;
+tool schemas never accept `user_id`. Durable conversation state is deferred.
 
 ### `add_expense`
 Purpose: create one expense.
 
-Implemented in `backend/tools/expenses.py` as an async LangChain tool. It
-currently uses the same seeded demo user as REST; it does not accept `user_id`.
+Implemented in `backend/tools/expenses.py` as an async LangChain tool. It uses
+the authenticated request-local merchant principal and does not accept `user_id`.
 Category names resolve to that user's category IDs before calling the shared
 expense service. Call with `await add_expense.ainvoke({...})` using the input
 below. The date must already be resolved; this tool does not interpret relative dates.

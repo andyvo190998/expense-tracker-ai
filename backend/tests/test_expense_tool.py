@@ -9,8 +9,16 @@ from sqlalchemy import event, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from test_expenses import DEMO_USER_ID, sqlite_engine
 
+from app.agent_context import bind_agent_principal
+from app.auth_types import Principal, UserRole
 from app.database import Base
 from app.models import Category, Expense, User
+
+
+@pytest.fixture(autouse=True)
+def authenticated_tool_principal():
+    with bind_agent_principal(Principal(DEMO_USER_ID, UserRole.MERCHANT)):
+        yield
 
 
 def test_add_expense_persistence_and_failures(tmp_path, monkeypatch):

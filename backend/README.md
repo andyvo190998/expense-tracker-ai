@@ -12,7 +12,8 @@ adds the current date in `Europe/Berlin` before each model call, before CopilotK
 appends frontend context and tools.
 
 FastAPI exposes that graph over AG-UI at `POST /agents/expense`; its health
-endpoint is `GET /agents/expense/health`. Start it with:
+endpoint is `GET /agents/expense/health`. Both require an authenticated merchant
+session. Start it with:
 
 ```bash
 uv run --env-file .env uvicorn main:app --reload
@@ -21,32 +22,23 @@ uv run --env-file .env uvicorn main:app --reload
 Point the CopilotKit runtime's remote agent URL at
 `http://localhost:8000/agents/expense` and use the agent name `expense_agent`.
 
-To try it, start PostgreSQL and apply the migrations/seeds with
+Start PostgreSQL and apply the migrations with
 `uv run alembic upgrade head`. Put `OPENAI_API_KEY` in the local `backend/.env`
-(never commit it). From `backend/`, this example calls OpenAI and writes a real
-expense for the seeded demo user:
+(never commit it). Configure `JWT_SECRET`, `REFRESH_TOKEN_PEPPER`, issuer,
+audience, cookie security, and allowed origins as shown in `.env.example`.
+
+Provision the first admin without putting credentials in source control:
 
 ```bash
-uv run --env-file .env python - <<'PY'
-import asyncio
-from agent import create_expense_agent
-
-async def main():
-    graph = create_expense_agent()
-    result = await graph.ainvoke(
-        {"messages": [{"role": "user", "content": "đi Aldi hết 30 euros"}]},
-        config={"recursion_limit": 10},
-    )
-    print(result["messages"][-1].content)
-
-asyncio.run(main())
-PY
+ADMIN_EMAIL=admin@example.com ADMIN_NAME=Administrator ADMIN_PASSWORD='use-a-secret-manager' \
+  uv run --env-file .env python -m app.cli.create_admin
 ```
 
 Creation, lookup, correction, confirmed deletion, exact EUR totals, and grouped
-category totals by inclusive date range are implemented. No frontend, durable
-conversation checkpointer, or authentication is wired yet. Each invocation
-needs its own message history; do not share histories between users. The prompt
+category totals by inclusive date range are implemented. Email/password auth,
+rotating refresh cookies, CSRF protection, and strict merchant ownership are
+wired across REST and agent tools. Durable conversation persistence is not yet
+implemented. Each invocation needs its own message history. The prompt
 requests truthful confirmations, but deterministic tests do not prove a live
 model will always follow it. Inspect tool results as the authority for saves.
 

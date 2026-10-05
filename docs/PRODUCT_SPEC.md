@@ -21,6 +21,13 @@ The system should understand that this likely means:
 
 ## MVP Capabilities
 
+### Access control
+- Visitors may use public pages only.
+- Public registration creates a merchant account.
+- Merchants may manage and analyze only their own expenses and use the agent.
+- Admins may list and activate/deactivate accounts, but cannot inspect financial data.
+- Authentication uses secure cookie sessions; destructive and authenticated mutations enforce CSRF protection.
+
 ### 1. Add expense by chat
 Supported examples:
 

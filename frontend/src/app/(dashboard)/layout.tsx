@@ -5,14 +5,15 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { ThemeCustomizer, ThemeCustomizerTrigger } from "@/components/theme-customizer";
+import { ThemeCustomizer } from "@/components/theme-customizer";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
+import { RequireRole } from "@/components/auth/require-role";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
 	const [themeCustomizerOpen, setThemeCustomizerOpen] = React.useState(false);
 	const { config } = useSidebarConfig();
 
-	return (
+	return <RequireRole allow={["merchant", "admin"]}>{(
 		<SidebarProvider
 			style={
 				{
@@ -67,5 +68,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 			{/* <ThemeCustomizerTrigger onClick={() => setThemeCustomizerOpen(true)} /> */}
 			<ThemeCustomizer open={themeCustomizerOpen} onOpenChange={setThemeCustomizerOpen} />
 		</SidebarProvider>
-	);
+	)}</RequireRole>;
 }

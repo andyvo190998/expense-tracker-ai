@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import services
-from app.context import DEMO_USER_ID
+from app.agent_context import get_agent_principal
 from app.database import SessionLocal
 from app.models import Category, Expense
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
@@ -123,7 +123,7 @@ async def add_expense(
     description: str | None = None,
     currency: str = "EUR",
 ) -> dict[str, object]:
-    """Save one expense for the current demo user.
+    """Save one expense for the authenticated merchant.
 
     Send amount as a decimal string such as "30.00", spent_at as YYYY-MM-DD,
     and category as an existing category name such as "groceries".
@@ -131,9 +131,10 @@ async def add_expense(
     failed write: its outcome may be uncertain.
     """
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
             matched = await services.find_category_by_name(
-                session, DEMO_USER_ID, category
+                session, user_id, category
             )
             if matched is None:
                 return {
@@ -149,7 +150,7 @@ async def add_expense(
                 description=description,
                 currency=currency,
             )
-            expense = await services.create_expense(session, DEMO_USER_ID, data)
+            expense = await services.create_expense(session, user_id, data)
             return {
                 "status": "created",
                 "expense": _expense_result(expense, matched.name),
@@ -176,10 +177,11 @@ async def find_expenses(
     be the intended mutation target, ask the user instead of guessing.
     """
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
             rows = await services.find_expenses(
                 session,
-                DEMO_USER_ID,
+                user_id,
                 merchant=merchant,
                 category=category,
                 start_date=start_date,
@@ -217,8 +219,9 @@ async def update_expense(
     match the user's request; ask the user to identify or confirm the target.
     """
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
-            expense = await services.get_expense(session, DEMO_USER_ID, expense_id)
+            expense = await services.get_expense(session, user_id, expense_id)
             if expense is None:
                 return {
                     "status": "error",
@@ -240,7 +243,7 @@ async def update_expense(
 
             if category is not None:
                 matched = await services.find_category_by_name(
-                    session, DEMO_USER_ID, category
+                    session, user_id, category
                 )
                 if matched is None:
                     return {
@@ -278,8 +281,9 @@ async def delete_expense(expense_id: uuid.UUID) -> dict[str, object]:
     Never call this tool in the same turn as the initial deletion request.
     """
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
-            expense = await services.get_expense(session, DEMO_USER_ID, expense_id)
+            expense = await services.get_expense(session, user_id, expense_id)
             if expense is None:
                 return {
                     "status": "error",
@@ -304,9 +308,10 @@ async def delete_expense(expense_id: uuid.UUID) -> dict[str, object]:
 async def get_total_expenses(start_date: date, end_date: date) -> dict[str, object]:
     """Return the exact EUR expense total for an inclusive YYYY-MM-DD range."""
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
             total = await services.get_total_expenses(
-                session, DEMO_USER_ID, start_date, end_date
+                session, user_id, start_date, end_date
             )
             return {
                 "status": "success",
@@ -329,9 +334,10 @@ async def get_spending_by_category(
 ) -> dict[str, object]:
     """Return exact EUR spending grouped by category for an inclusive date range."""
     try:
+        user_id = get_agent_principal().user_id
         async with SessionLocal() as session:
             rows = await services.get_spending_by_category(
-                session, DEMO_USER_ID, start_date, end_date
+                session, user_id, start_date, end_date
             )
             return {
                 "status": "success",

@@ -9,6 +9,9 @@ from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.auth_dependencies import current_principal
+from app.auth_routes import require_csrf
+from app.auth_types import Principal, UserRole
 from app.database import Base, get_db
 from app.models import Category, Expense, User
 from main import app
@@ -18,6 +21,17 @@ OTHER_CATEGORY_ID = uuid.UUID("00000000-0000-0000-0000-000000000111")
 FOREIGN_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 FOREIGN_CATEGORY_ID = uuid.UUID("00000000-0000-0000-0000-000000000201")
 FOREIGN_EXPENSE_ID = uuid.UUID("00000000-0000-0000-0000-000000000301")
+
+
+@pytest.fixture(autouse=True)
+def authenticated_demo_principal():
+    app.dependency_overrides[current_principal] = lambda: Principal(
+        DEMO_USER_ID, UserRole.MERCHANT
+    )
+    app.dependency_overrides[require_csrf] = lambda: None
+    yield
+    app.dependency_overrides.pop(current_principal, None)
+    app.dependency_overrides.pop(require_csrf, None)
 
 
 def sqlite_engine(path):

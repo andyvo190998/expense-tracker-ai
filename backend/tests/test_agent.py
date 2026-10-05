@@ -12,6 +12,8 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from test_expenses import DEMO_USER_ID, sqlite_engine
 
+from app.agent_context import bind_agent_principal
+from app.auth_types import Principal, UserRole
 from app.database import Base
 from app.models import Category, Expense, User
 from tools import expenses
@@ -24,8 +26,8 @@ def test_expense_agent_agui_endpoint_is_registered():
 
     response = TestClient(app).get("/agents/expense/health")
 
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok", "agent": {"name": "expense_agent"}}
+    assert response.status_code == 401
+    assert response.json()["code"] == "UNAUTHENTICATED"
 
 
 class RecordingModel(FakeMessagesListChatModel):
@@ -93,7 +95,10 @@ def test_agent_runs_real_tool_and_preserves_copilot_context(
                             "BEGIN SELECT RAISE(ABORT, 'write failed'); END"
                         )
                     )
-            with patch("agent.datetime") as clock:
+            with (
+                bind_agent_principal(Principal(DEMO_USER_ID, UserRole.MERCHANT)),
+                patch("agent.datetime") as clock,
+            ):
                 clock.now.side_effect = [
                     datetime(2026, 9, 18, 23, 59, tzinfo=ZoneInfo("Europe/Berlin")),
                     datetime(2026, 9, 19, 0, 0, tzinfo=ZoneInfo("Europe/Berlin")),

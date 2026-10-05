@@ -7,6 +7,7 @@ import { SidebarConfigProvider } from "@/contexts/sidebar-context";
 import { inter } from "@/lib/fonts";
 import { I18nProvider } from "@/i18n/provider";
 import { CopilotProvider } from "./copilot-provider";
+import { AuthProvider } from "@/contexts/auth-context";
 
 export const metadata: Metadata = {
 	title: "Expense Tracker AI",
@@ -19,9 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<body className={inter.className}>
 				<ThemeProvider defaultTheme="system" storageKey="nextjs-ui-theme">
 					<I18nProvider>
-						<CopilotProvider>
-							<SidebarConfigProvider>{children}</SidebarConfigProvider>
-						</CopilotProvider>
+						<AuthProvider>
+							<CopilotProvider>
+								<SidebarConfigProvider>{children}</SidebarConfigProvider>
+							</CopilotProvider>
+						</AuthProvider>
 					</I18nProvider>
 				</ThemeProvider>
 			</body>

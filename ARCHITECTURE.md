@@ -77,6 +77,15 @@ External LLM provider is called only by the backend agent layer.
 
 ## Architectural Boundaries
 
+### Authentication and authorization
+- FastAPI issues short-lived access JWTs and rotating refresh tokens in HttpOnly cookies.
+- Passwords use Argon2id; refresh tokens are stored only as hashes.
+- Cookie-authenticated mutations require a double-submit CSRF token.
+- Merchants access only records scoped to their verified JWT subject.
+- Admins manage account status and cannot access financial records or the expense agent.
+- Visitor is the unauthenticated public state, not a persisted role.
+- Foreign financial IDs return `404`; the model and frontend never select trusted identity.
+
 ### LLM responsibilities
 The LLM may:
 - interpret user intent,

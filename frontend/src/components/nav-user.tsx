@@ -9,8 +9,10 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
+import { useRouter } from "next/navigation"
 
 import { Logo } from "@/components/logo"
+import { useAuth } from "@/contexts/auth-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +40,8 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const { t } = useTranslation()
+  const { logout } = useAuth()
+  const router = useRouter()
 
   return (
     <SidebarMenu>
@@ -101,11 +105,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link href="/sign-in">
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => void logout().then(() => router.replace("/sign-in"))}>
                 <LogOut />
                 {t("user.logout")}
-              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
