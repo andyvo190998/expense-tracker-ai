@@ -3,10 +3,8 @@
 import { useTranslation } from "react-i18next";
 import { MetricsOverview } from "./components/metrics-overview";
 import { RecentTransactions } from "./components/recent-transactions";
-import { TopProducts } from "./components/top-products";
-import { CustomerInsights } from "./components/customer-insights";
+
 import { RevenueBreakdown } from "./components/revenue-breakdown";
-import { ExpensesChart } from "./components/expenses-chart";
 
 export default function Dashboard2() {
 	const { t } = useTranslation();

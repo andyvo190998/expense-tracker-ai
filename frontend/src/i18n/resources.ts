@@ -12,6 +12,7 @@ export const resources = {
 				chat: "Trò chuyện",
 				calendar: "Lịch",
 				users: "Người dùng",
+				chiaLuot: "Chia lượt",
 			},
 			header: { search: "Tìm kiếm...", landing: "Trang chủ" },
 			user: {
@@ -82,6 +83,7 @@ export const resources = {
 				chat: "Chat",
 				calendar: "Calendar",
 				users: "Users",
+				chiaLuot: "Plan",
 			},
 			header: { search: "Search...", landing: "Landing page" },
 			user: {

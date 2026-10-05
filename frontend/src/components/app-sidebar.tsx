@@ -9,11 +9,11 @@ import {
 	MessageCircle,
 	Calendar,
 	Users,
+	BriefcaseBusiness,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Logo } from "@/components/logo";
-
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -46,6 +46,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				{ title: t("nav.chat"), url: "/chat", icon: MessageCircle },
 				{ title: t("nav.calendar"), url: "/calendar", icon: Calendar },
 				{ title: t("nav.users"), url: "/users", icon: Users },
+				{ title: t("nav.chiaLuot"), url: "/chia-luot", icon: BriefcaseBusiness },
 			],
 		},
 	];
