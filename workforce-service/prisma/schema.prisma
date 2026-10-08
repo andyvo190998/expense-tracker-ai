@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkDayStatus {
+  OPEN
+  CLOSED
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  PAYPAL
+}
+
+model Employee {
+  id            String            @id @default(uuid()) @db.Uuid
+  merchantId    String            @map("merchant_id") @db.Uuid
+  name          String
+  isActive      Boolean           @default(true) @map("is_active")
+  sortOrder     Int               @map("sort_order")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  rosterEntries WorkDayEmployee[]
+  sessions      ServiceSession[]
+
+  @@index([merchantId, isActive, sortOrder])
+  @@map("employees")
+}
+
+model WorkDay {
+  id           String            @id @default(uuid()) @db.Uuid
+  merchantId   String            @map("merchant_id") @db.Uuid
+  businessDate DateTime          @map("business_date") @db.Date
+  status       WorkDayStatus     @default(OPEN)
+  nextPosition Int               @default(0) @map("next_position")
+  startedAt    DateTime          @default(now()) @map("started_at") @db.Timestamptz
+  closedAt     DateTime?         @map("closed_at") @db.Timestamptz
+  roster       WorkDayEmployee[]
+  sessions     ServiceSession[]
+
+  @@unique([merchantId, businessDate])
+  @@index([merchantId, status])
+  @@map("work_days")
+}
+
+model WorkDayEmployee {
+  workDayId         String   @map("work_day_id") @db.Uuid
+  employeeId        String   @map("employee_id") @db.Uuid
+  position          Int
+  isAvailable       Boolean  @default(true) @map("is_available")
+  unavailableReason String?  @map("unavailable_reason")
+  workDay           WorkDay  @relation(fields: [workDayId], references: [id], onDelete: Cascade)
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@id([workDayId, employeeId])
+  @@unique([workDayId, position])
+  @@index([employeeId])
+  @@map("work_day_employees")
+}
+
+model ServiceSession {
+  id             String        @id @default(uuid()) @db.Uuid
+  merchantId     String        @map("merchant_id") @db.Uuid
+  workDayId      String        @map("work_day_id") @db.Uuid
+  employeeId     String        @map("employee_id") @db.Uuid
+  sequenceNumber Int           @map("sequence_number")
+  customerName   String?       @map("customer_name")
+  status         SessionStatus @default(IN_PROGRESS)
+  startedAt      DateTime      @default(now()) @map("started_at") @db.Timestamptz
+  completedAt    DateTime?     @map("completed_at") @db.Timestamptz
+  cancelledAt    DateTime?     @map("cancelled_at") @db.Timestamptz
+  workDay        WorkDay       @relation(fields: [workDayId], references: [id], onDelete: Cascade)
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  payments       Payment[]
+
+  @@unique([workDayId, sequenceNumber])
+  @@index([merchantId, workDayId, status])
+  @@index([employeeId, status])
+  @@map("service_sessions")
+}
+
+model Payment {
+  id               String         @id @default(uuid()) @db.Uuid
+  merchantId       String         @map("merchant_id") @db.Uuid
+  serviceSessionId String         @unique @map("service_session_id") @db.Uuid
+  amount           Decimal        @db.Decimal(12, 2)
+  currency         String         @default("EUR") @db.Char(3)
+  method           PaymentMethod
+  receivedAt       DateTime       @default(now()) @map("received_at") @db.Timestamptz
+  session          ServiceSession @relation(fields: [serviceSessionId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId, receivedAt])
+  @@map("payments")
+}

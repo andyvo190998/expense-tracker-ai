@@ -7,9 +7,42 @@ services:
       POSTGRES_PASSWORD: expense
       POSTGRES_DB: expense_ai
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U expense -d expense_ai']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # workforce-db-init:
+  #   image: postgres:17
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     PGPASSWORD: expense
+  #   command:
+  #     [
+  #       'sh',
+  #       '-c',
+  #       'psql -h postgres -U expense -d expense_ai -tAc "SELECT 1 FROM pg_database WHERE datname=''workforce''" | grep -q 1 || createdb -h postgres -U expense workforce',
+  #     ]
+
+  # workforce:
+  #   build: ./workforce-service
+  #   restart: unless-stopped
+  #   depends_on:
+  #     workforce-db-init:
+  #       condition: service_completed_successfully
+  #   environment:
+  #     DATABASE_URL: postgresql://expense:expense@postgres:5432/workforce
+  #     JWT_SECRET: ${JWT_SECRET:-development-only-signing-secret-change-me}
+  #     JWT_ISSUER: expense-tracker-api
+  #     JWT_AUDIENCE: expense-tracker-web
+  #   ports:
+  #     - "8001:8001"
 
 volumes:
   postgres_data:

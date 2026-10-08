@@ -1,0 +1,16 @@
+CREATE TYPE "WorkDayStatus" AS ENUM ('OPEN', 'CLOSED');
+CREATE TYPE "SessionStatus" AS ENUM ('IN_PROGRESS', 'PAID', 'CANCELLED');
+CREATE TYPE "PaymentMethod" AS ENUM ('CASH', 'PAYPAL');
+CREATE TABLE "employees" ("id" UUID PRIMARY KEY, "merchant_id" UUID NOT NULL, "name" TEXT NOT NULL, "is_active" BOOLEAN NOT NULL DEFAULT true, "sort_order" INTEGER NOT NULL, "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ NOT NULL);
+CREATE TABLE "work_days" ("id" UUID PRIMARY KEY, "merchant_id" UUID NOT NULL, "business_date" DATE NOT NULL, "status" "WorkDayStatus" NOT NULL DEFAULT 'OPEN', "next_position" INTEGER NOT NULL DEFAULT 0 CHECK ("next_position" >= 0), "started_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "closed_at" TIMESTAMPTZ);
+CREATE TABLE "work_day_employees" ("work_day_id" UUID NOT NULL REFERENCES "work_days"("id") ON DELETE CASCADE, "employee_id" UUID NOT NULL REFERENCES "employees"("id") ON DELETE RESTRICT, "position" INTEGER NOT NULL CHECK ("position" >= 0), "is_available" BOOLEAN NOT NULL DEFAULT true, "unavailable_reason" TEXT, PRIMARY KEY ("work_day_id", "employee_id"), UNIQUE ("work_day_id", "position"));
+CREATE TABLE "service_sessions" ("id" UUID PRIMARY KEY, "merchant_id" UUID NOT NULL, "work_day_id" UUID NOT NULL REFERENCES "work_days"("id") ON DELETE CASCADE, "employee_id" UUID NOT NULL REFERENCES "employees"("id") ON DELETE RESTRICT, "sequence_number" INTEGER NOT NULL, "customer_name" TEXT, "status" "SessionStatus" NOT NULL DEFAULT 'IN_PROGRESS', "started_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "completed_at" TIMESTAMPTZ, "cancelled_at" TIMESTAMPTZ, UNIQUE ("work_day_id", "sequence_number"), CHECK (("status" = 'IN_PROGRESS' AND "completed_at" IS NULL AND "cancelled_at" IS NULL) OR ("status" = 'PAID' AND "completed_at" IS NOT NULL AND "cancelled_at" IS NULL) OR ("status" = 'CANCELLED' AND "cancelled_at" IS NOT NULL)));
+CREATE TABLE "payments" ("id" UUID PRIMARY KEY, "merchant_id" UUID NOT NULL, "service_session_id" UUID NOT NULL UNIQUE REFERENCES "service_sessions"("id") ON DELETE RESTRICT, "amount" DECIMAL(12,2) NOT NULL CHECK ("amount" > 0), "currency" CHAR(3) NOT NULL DEFAULT 'EUR', "method" "PaymentMethod" NOT NULL, "received_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "employees_merchant_id_is_active_sort_order_idx" ON "employees"("merchant_id", "is_active", "sort_order");
+CREATE UNIQUE INDEX "one_open_work_day_per_merchant" ON "work_days"("merchant_id") WHERE "status" = 'OPEN';
+CREATE INDEX "work_days_merchant_id_status_idx" ON "work_days"("merchant_id", "status");
+CREATE INDEX "work_day_employees_employee_id_idx" ON "work_day_employees"("employee_id");
+CREATE UNIQUE INDEX "one_active_session_per_employee" ON "service_sessions"("employee_id") WHERE "status" = 'IN_PROGRESS';
+CREATE INDEX "service_sessions_merchant_id_work_day_id_status_idx" ON "service_sessions"("merchant_id", "work_day_id", "status");
+CREATE INDEX "service_sessions_employee_id_status_idx" ON "service_sessions"("employee_id", "status");
+CREATE INDEX "payments_merchant_id_received_at_idx" ON "payments"("merchant_id", "received_at");
