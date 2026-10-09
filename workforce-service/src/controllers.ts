@@ -55,6 +55,13 @@ export class WorkDaysController {
 	) {
 		return this.days.availability(merchantId, id, employeeId, data);
 	}
+	@Patch(":id/next-employee/:employeeId") setNext(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Param("employeeId") employeeId: string,
+	) {
+		return this.days.setNext(merchantId, id, employeeId);
+	}
 	@Post(":id/assignments") assign(
 		@MerchantId() merchantId: string,
 		@Param("id") id: string,

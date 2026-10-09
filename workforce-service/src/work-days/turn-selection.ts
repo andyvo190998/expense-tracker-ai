@@ -10,9 +10,22 @@ export function selectNextEmployee(
 	const ordered = [...roster].sort((a, b) => a.position - b.position);
 	if (employeeId) {
 		const selected = ordered.find((entry) => entry.employeeId === employeeId);
-		return selected?.isAvailable && !busy.has(employeeId)
-			? { employeeId, nextPosition }
-			: null;
+		if (!selected?.isAvailable || busy.has(employeeId)) return null;
+		let currentEntry: RosterEntry | undefined;
+		for (let offset = 0; offset < ordered.length; offset++) {
+			const entry = ordered[(nextPosition + offset) % ordered.length];
+			if (entry.isAvailable && !busy.has(entry.employeeId)) {
+				currentEntry = entry;
+				break;
+			}
+		}
+		return {
+			employeeId,
+			nextPosition:
+				currentEntry?.employeeId === employeeId
+					? (selected.position + 1) % ordered.length
+					: nextPosition,
+		};
 	}
 	for (let offset = 0; offset < ordered.length; offset++) {
 		const entry = ordered[(nextPosition + offset) % ordered.length];

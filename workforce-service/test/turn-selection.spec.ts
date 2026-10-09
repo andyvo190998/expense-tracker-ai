@@ -26,10 +26,29 @@ describe("selectNextEmployee", () => {
 		expect(selectNextEmployee(roster, 0, new Set(["one", "two", "four"]))).toBeNull();
 	});
 
-	it("keeps the normal turn when a different employee is selected", () => {
+	it("keeps the normal turn when a later employee starts early", () => {
 		expect(selectNextEmployee(roster, 1, new Set(), "four")).toEqual({
 			employeeId: "four",
 			nextPosition: 1,
 		});
+	});
+
+	it("does not return to an earlier employee when they finish", () => {
+		const availableRoster = roster.map((entry) => ({ ...entry, isAvailable: true }));
+		const first = selectNextEmployee(availableRoster, 0, new Set(), "one");
+		const second = selectNextEmployee(availableRoster, first!.nextPosition, new Set(["one"]), "two");
+		const fourth = selectNextEmployee(
+			availableRoster,
+			second!.nextPosition,
+			new Set(["one", "two"]),
+			"four",
+		);
+
+		expect(first?.nextPosition).toBe(1);
+		expect(second?.nextPosition).toBe(2);
+		expect(fourth?.nextPosition).toBe(2);
+		expect(
+			selectNextEmployee(availableRoster, fourth!.nextPosition, new Set(["two", "four"])),
+		).toMatchObject({ employeeId: "three" });
 	});
 });

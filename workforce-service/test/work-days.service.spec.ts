@@ -2,6 +2,58 @@ import { Prisma } from "@prisma/client";
 import { WorkDaysService } from "../src/work-days.service";
 
 describe("WorkDaysService", () => {
+	it("sets an eligible employee as the next turn", async () => {
+		const transaction = {
+			$queryRaw: jest.fn(),
+			workDay: {
+				findFirst: jest.fn().mockResolvedValue({
+					id: "day-id",
+					roster: [
+						{ employeeId: "one", position: 0, isAvailable: true },
+						{ employeeId: "two", position: 1, isAvailable: true },
+					],
+				}),
+				update: jest.fn().mockResolvedValue({ id: "day-id", nextPosition: 1 }),
+			},
+			serviceSession: { findFirst: jest.fn().mockResolvedValue(null) },
+		};
+		const service = new WorkDaysService({
+			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
+		} as never);
+
+		await (service as WorkDaysService & {
+			setNext: (merchantId: string, dayId: string, employeeId: string) => Promise<unknown>;
+		}).setNext("merchant-id", "day-id", "two");
+
+		expect(transaction.workDay.update).toHaveBeenCalledWith({
+			where: { id: "day-id" },
+			data: { nextPosition: 1 },
+		});
+	});
+
+	it("rejects setting a busy employee as the next turn", async () => {
+		const transaction = {
+			$queryRaw: jest.fn(),
+			workDay: {
+				findFirst: jest.fn().mockResolvedValue({
+					id: "day-id",
+					roster: [{ employeeId: "one", position: 0, isAvailable: true }],
+				}),
+				update: jest.fn(),
+			},
+			serviceSession: { findFirst: jest.fn().mockResolvedValue({ id: "session-id" }) },
+		};
+		const service = new WorkDaysService({
+			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
+		} as never);
+
+		await expect(
+			(service as WorkDaysService & {
+				setNext: (merchantId: string, dayId: string, employeeId: string) => Promise<unknown>;
+			}).setNext("merchant-id", "day-id", "one"),
+		).rejects.toMatchObject({ response: { code: "NO_ELIGIBLE_EMPLOYEE" } });
+	});
+
 	it("reorders every paid customer for one employee", async () => {
 		const rows = [
 			{ id: "first-id", servedNumber: 1 },

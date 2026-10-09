@@ -182,31 +182,6 @@ export function EmployeesCard({
 	);
 }
 
-export function CustomerAssignment({
-	customerName,
-	onAssign,
-	onCustomerNameChange,
-}: {
-	customerName: string;
-	onAssign: () => void;
-	onCustomerNameChange: (name: string) => void;
-}) {
-	return (
-		<Card>
-			<CardContent className="flex flex-col gap-3 pt-6 sm:flex-row">
-				<Input
-					value={customerName}
-					onChange={(event) => onCustomerNameChange(event.target.value)}
-					placeholder="Customer name (optional)"
-				/>
-				<Button className="sm:w-52" onClick={onAssign}>
-					<Users /> Assign next customer
-				</Button>
-			</CardContent>
-		</Card>
-	);
-}
-
 export function EmployeeCard({
 	active,
 	entry,
@@ -216,6 +191,7 @@ export function EmployeeCard({
 	onAvailabilityChange,
 	onCancel,
 	onComplete,
+	onSetNext,
 	onViewServed,
 	total,
 }: {
@@ -227,6 +203,7 @@ export function EmployeeCard({
 	onAvailabilityChange: (isAvailable: boolean) => void;
 	onCancel: (session: Session) => void;
 	onComplete: (session: Session) => void;
+	onSetNext: () => void;
 	onViewServed: (employee: Employee) => void;
 	total?: EmployeeSummary;
 }) {
@@ -255,13 +232,21 @@ export function EmployeeCard({
 				</div>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3">
-				<div className="flex justify-between text-sm">
+				<div className="flex items-center justify-between text-sm">
 					<span>
 						{entry.isAvailable ? (active ? "Serving" : "Available") : "Vacation"}
 					</span>
-					{isNext && entry.isAvailable ? (
-						<Badge variant="outline">Next turn</Badge>
-					) : null}
+					<div className="flex items-center gap-2">
+						{isNext ? <Badge variant="outline">Next turn</Badge> : null}
+						<Switch
+							aria-label={`Set ${entry.employee.name} as next turn`}
+							checked={isNext}
+							disabled={isNext || !entry.isAvailable || Boolean(active)}
+							onCheckedChange={(checked) => {
+								if (checked) onSetNext();
+							}}
+						/>
+					</div>
 				</div>
 				{active ? (
 					<>

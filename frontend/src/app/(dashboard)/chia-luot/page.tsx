@@ -10,7 +10,6 @@ import {
 } from "./components/served-customers-dialog";
 import {
 	CancelServiceDialog,
-	CustomerAssignment,
 	EmployeeCard,
 	EmployeesCard,
 	PageHeader,
@@ -22,6 +21,7 @@ import {
 import {
 	api,
 	type Employee,
+	nextEmployeeId,
 	type PaymentMethod,
 	type RosterItem,
 	type Session,
@@ -79,6 +79,13 @@ export default function ChiaLuotPage() {
 					.map((session) => [session.employeeId, session]) ?? [],
 			),
 		[day],
+	);
+	const nextEmployee = useMemo(
+		() =>
+			day
+				? nextEmployeeId(day.roster, day.nextPosition, new Set(activeByEmployee.keys()))
+				: undefined,
+		[activeByEmployee, day],
 	);
 	const totals = useMemo(
 		() => new Map(summary?.employees.map((item) => [item.employeeId, item]) ?? []),
@@ -240,11 +247,6 @@ export default function ChiaLuotPage() {
 				/>
 			) : (
 				<>
-					<CustomerAssignment
-						customerName={customerName}
-						onAssign={() => void assign()}
-						onCustomerNameChange={setCustomerName}
-					/>
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 						{day.roster.map((entry, index) => (
 							<EmployeeCard
@@ -252,7 +254,7 @@ export default function ChiaLuotPage() {
 								active={activeByEmployee.get(entry.employeeId)}
 								entry={entry}
 								index={index}
-								isNext={index === day.nextPosition}
+								isNext={entry.employeeId === nextEmployee}
 								onAssign={() => setQuickAssignEmployee(entry.employee)}
 								onAvailabilityChange={(isAvailable) =>
 									void mutate(
@@ -271,6 +273,12 @@ export default function ChiaLuotPage() {
 								}
 								onCancel={setCancelSession}
 								onComplete={complete}
+								onSetNext={() =>
+									void mutate(
+										`work-days/${day.id}/next-employee/${entry.employeeId}`,
+										{ method: "PATCH" },
+									)
+								}
 								onViewServed={setServedEmployee}
 								total={totals.get(entry.employeeId)}
 							/>

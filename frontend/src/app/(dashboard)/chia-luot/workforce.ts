@@ -42,6 +42,18 @@ export type Summary = {
 	employees: EmployeeSummary[];
 };
 
+export function nextEmployeeId(
+	roster: Pick<WorkDay["roster"][number], "employeeId" | "position" | "isAvailable">[],
+	nextPosition: number,
+	busy: ReadonlySet<string>,
+) {
+	const ordered = [...roster].sort((a, b) => a.position - b.position);
+	for (let offset = 0; offset < ordered.length; offset++) {
+		const entry = ordered[(nextPosition + offset) % ordered.length];
+		if (entry.isAvailable && !busy.has(entry.employeeId)) return entry.employeeId;
+	}
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await authFetch(`/api/workforce/${path}`, init);
 	if (!response.ok) {

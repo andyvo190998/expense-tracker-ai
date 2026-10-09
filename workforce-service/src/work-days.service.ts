@@ -88,6 +88,27 @@ export class WorkDaysService {
 			},
 		});
 	}
+	async setNext(merchantId: string, dayId: string, employeeId: string) {
+		return this.db.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM work_days WHERE id = ${dayId}::uuid FOR UPDATE`;
+			const day = await tx.workDay.findFirst({
+				where: { id: dayId, merchantId, status: "OPEN" },
+				include: { roster: true },
+			});
+			if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
+			const entry = day.roster.find((item) => item.employeeId === employeeId);
+			if (!entry) throw new NotFoundException({ code: "EMPLOYEE_NOT_FOUND" });
+			const active = await tx.serviceSession.findFirst({
+				where: { workDayId: dayId, employeeId, status: "IN_PROGRESS" },
+			});
+			if (!entry.isAvailable || active)
+				throw new ConflictException({ code: "NO_ELIGIBLE_EMPLOYEE" });
+			return tx.workDay.update({
+				where: { id: dayId },
+				data: { nextPosition: entry.position },
+			});
+		});
+	}
 	async assign(merchantId: string, dayId: string, data: AssignmentDto) {
 		return this.db.$transaction(async (tx) => {
 			await tx.$queryRaw`SELECT id FROM work_days WHERE id = ${dayId}::uuid FOR UPDATE`;
