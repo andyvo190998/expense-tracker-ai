@@ -41,6 +41,7 @@ class User(Base):
             name="user_role",
             native_enum=False,
             create_constraint=True,
+            length=20,
         ),
         default=UserRole.MERCHANT,
         server_default=UserRole.MERCHANT.value,
