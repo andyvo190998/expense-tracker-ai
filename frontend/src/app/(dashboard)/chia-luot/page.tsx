@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
-import { ServedCustomersDialog } from "./components/served-customers-dialog";
+import {
+	ServedCustomersDialog,
+	type ServedCustomerInput,
+} from "./components/served-customers-dialog";
 import {
 	CancelServiceDialog,
 	CustomerAssignment,
@@ -182,6 +185,40 @@ export default function ChiaLuotPage() {
 			toast.success("Service deleted");
 		}
 	}
+	async function createServedCustomer(input: ServedCustomerInput) {
+		if (!day || !servedEmployee) return false;
+		const result = await mutate(`work-days/${day.id}/served-customers`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ...input, employeeId: servedEmployee.id, currency: "EUR" }),
+		});
+		if (result) toast.success("Served customer added");
+		return Boolean(result);
+	}
+	async function updateServedCustomer(id: string, input: ServedCustomerInput) {
+		const result = await mutate(`sessions/${id}/served-customer`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(input),
+		});
+		if (result) toast.success("Served customer updated");
+		return Boolean(result);
+	}
+	async function deleteServedCustomer(id: string) {
+		const result = await mutate(`sessions/${id}/served-customer`, { method: "DELETE" });
+		if (result) toast.success("Served customer deleted");
+		return Boolean(result);
+	}
+	async function reorderServedCustomers(sessionIds: string[]) {
+		if (!day || !servedEmployee) return false;
+		const result = await mutate(`work-days/${day.id}/served-customers/order`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ employeeId: servedEmployee.id, sessionIds }),
+		});
+		if (result) toast.success("Served customers reordered");
+		return Boolean(result);
+	}
 	async function closeDay() {
 		if (day && (await mutate(`work-days/${day.id}/close`, { method: "POST" })))
 			toast.success("Workday closed; tomorrow's order is rotated");
@@ -293,7 +330,11 @@ export default function ChiaLuotPage() {
 			{servedEmployee ? (
 				<ServedCustomersDialog
 					employee={servedEmployee}
+					onCreate={createServedCustomer}
+					onDelete={deleteServedCustomer}
 					onOpenChange={(open) => !open && setServedEmployee(null)}
+					onReorder={reorderServedCustomers}
+					onUpdate={updateServedCustomer}
 					open
 					sessions={day?.sessions ?? []}
 				/>

@@ -1,7 +1,15 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, SessionStatus } from "@prisma/client";
 import { PrismaService } from "./prisma.service";
-import { AssignmentDto, AvailabilityDto, PaymentDto, StartWorkDayDto } from "./dtos";
+import {
+	AssignmentDto,
+	AvailabilityDto,
+	CreateServedCustomerDto,
+	PaymentDto,
+	ReorderServedCustomersDto,
+	StartWorkDayDto,
+	UpdateServedCustomerDto,
+} from "./dtos";
 import { selectNextEmployee } from "./work-days/turn-selection";
 
 const dayInclude = {
@@ -106,12 +114,20 @@ export class WorkDaysService {
 						_max: { sequenceNumber: true },
 					})
 				)._max.sequenceNumber ?? 0;
+			const servedNumber =
+				(
+					await tx.serviceSession.aggregate({
+						where: { workDayId: dayId, employeeId: selected.employeeId },
+						_max: { servedNumber: true },
+					})
+				)._max.servedNumber ?? 0;
 			const session = await tx.serviceSession.create({
 				data: {
 					merchantId,
 					workDayId: dayId,
 					employeeId: selected.employeeId,
 					sequenceNumber: sequenceNumber + 1,
+					servedNumber: servedNumber + 1,
 					customerName: data.customerName?.trim() || null,
 				},
 				include: { employee: true },
@@ -121,6 +137,209 @@ export class WorkDaysService {
 				data: { nextPosition: selected.nextPosition },
 			});
 			return session;
+		});
+	}
+	async createServedCustomer(
+		merchantId: string,
+		dayId: string,
+		data: CreateServedCustomerDto,
+	) {
+		return this.db.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM work_days WHERE id = ${dayId}::uuid FOR UPDATE`;
+			const day = await tx.workDay.findFirst({
+				where: { id: dayId, merchantId, status: "OPEN" },
+				include: { roster: true },
+			});
+			if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
+			if (!day.roster.some((entry) => entry.employeeId === data.employeeId))
+				throw new NotFoundException({ code: "EMPLOYEE_NOT_FOUND" });
+			const sequenceNumber =
+				(
+					await tx.serviceSession.aggregate({
+						where: { workDayId: dayId },
+						_max: { sequenceNumber: true },
+					})
+				)._max.sequenceNumber ?? 0;
+			const maxServedNumber =
+				(
+					await tx.serviceSession.aggregate({
+						where: { workDayId: dayId, employeeId: data.employeeId },
+						_max: { servedNumber: true },
+					})
+				)._max.servedNumber ?? 0;
+			if (data.servedNumber && data.servedNumber > maxServedNumber + 1)
+				throw new ConflictException({ code: "INVALID_SERVED_NUMBER" });
+			try {
+				return await tx.serviceSession.create({
+					data: {
+						merchantId,
+						workDayId: dayId,
+						employeeId: data.employeeId,
+						sequenceNumber: sequenceNumber + 1,
+						servedNumber: data.servedNumber ?? maxServedNumber + 1,
+						customerName: data.customerName?.trim() || null,
+						status: "PAID",
+						completedAt: new Date(),
+						payments: {
+							create: {
+								merchantId,
+								amount: new Prisma.Decimal(data.amount),
+								currency: data.currency,
+								method: data.method,
+							},
+						},
+					},
+					include: { employee: true, payments: true },
+				});
+			} catch (error) {
+				if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+					throw new ConflictException({ code: "SERVED_NUMBER_TAKEN" });
+				throw error;
+			}
+		});
+	}
+	async reorderServedCustomers(
+		merchantId: string,
+		dayId: string,
+		data: ReorderServedCustomersDto,
+	) {
+		return this.db.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM work_days WHERE id = ${dayId}::uuid FOR UPDATE`;
+			const day = await tx.workDay.findFirst({ where: { id: dayId, merchantId } });
+			if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
+			const rows = await tx.serviceSession.findMany({
+				where: {
+					merchantId,
+					workDayId: dayId,
+					employeeId: data.employeeId,
+					status: "PAID",
+				},
+				select: { id: true, servedNumber: true },
+				orderBy: { servedNumber: "asc" },
+			});
+			const requestedIds = new Set(data.sessionIds);
+			if (
+				requestedIds.size !== rows.length ||
+				data.sessionIds.length !== rows.length ||
+				rows.some((row) => !requestedIds.has(row.id))
+			)
+				throw new ConflictException({ code: "INVALID_SERVED_ORDER" });
+			const maximum = await tx.serviceSession.aggregate({
+				where: { workDayId: dayId, employeeId: data.employeeId },
+				_max: { servedNumber: true },
+			});
+			const offset = (maximum._max.servedNumber ?? 0) + rows.length + 1;
+			await tx.serviceSession.updateMany({
+				where: { id: { in: data.sessionIds }, merchantId },
+				data: { servedNumber: { increment: offset } },
+			});
+			await Promise.all(
+				data.sessionIds.map((id, index) =>
+					tx.serviceSession.update({
+						where: { id },
+						data: { servedNumber: index + 1 },
+					}),
+				),
+			);
+			return tx.serviceSession.findMany({
+				where: { id: { in: data.sessionIds }, merchantId },
+				include: { employee: true, payments: true },
+				orderBy: { servedNumber: "asc" },
+			});
+		});
+	}
+	async updateServedCustomer(
+		merchantId: string,
+		sessionId: string,
+		data: UpdateServedCustomerDto,
+	) {
+		return this.db.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM service_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
+			const session = await tx.serviceSession.findFirst({
+				where: { id: sessionId, merchantId, status: "PAID" },
+				include: { payments: true },
+			});
+			if (!session) throw new NotFoundException({ code: "SERVED_CUSTOMER_NOT_FOUND" });
+			if (data.servedNumber && data.servedNumber !== session.servedNumber) {
+				const previousNumber = session.servedNumber;
+				const maximum = await tx.serviceSession.aggregate({
+					where: {
+						workDayId: session.workDayId,
+						employeeId: session.employeeId,
+					},
+					_max: { servedNumber: true },
+				});
+				if (data.servedNumber > (maximum._max.servedNumber ?? 0))
+					throw new ConflictException({ code: "INVALID_SERVED_NUMBER" });
+				const occupied = await tx.serviceSession.findFirst({
+					where: {
+						workDayId: session.workDayId,
+						employeeId: session.employeeId,
+						servedNumber: data.servedNumber,
+					},
+				});
+				if (occupied) {
+					const temporaryNumber = (maximum._max.servedNumber ?? 0) + 1;
+					await tx.serviceSession.update({
+						where: { id: session.id },
+						data: { servedNumber: temporaryNumber },
+					});
+					await tx.serviceSession.update({
+						where: { id: occupied.id },
+						data: { servedNumber: previousNumber },
+					});
+				}
+			}
+			if ((data.amount || data.method) && session.payments[0])
+				await tx.payment.update({
+					where: { id: session.payments[0].id },
+					data: {
+						amount: data.amount ? new Prisma.Decimal(data.amount) : undefined,
+						method: data.method,
+					},
+				});
+			const updated = await tx.serviceSession.update({
+				where: { id: session.id },
+				data: {
+					servedNumber: data.servedNumber,
+					customerName:
+						data.customerName === undefined ? undefined : data.customerName.trim() || null,
+				},
+				include: { employee: true, payments: true },
+			});
+			return updated;
+		});
+	}
+	async deleteServedCustomer(merchantId: string, sessionId: string) {
+		return this.db.$transaction(async (tx) => {
+			const session = await tx.serviceSession.findFirst({
+				where: { id: sessionId, merchantId, status: "PAID" },
+			});
+			if (!session) throw new NotFoundException({ code: "SERVED_CUSTOMER_NOT_FOUND" });
+			await tx.payment.deleteMany({ where: { serviceSessionId: sessionId, merchantId } });
+			await tx.serviceSession.delete({ where: { id: sessionId } });
+			const maximum = await tx.serviceSession.aggregate({
+				where: { workDayId: session.workDayId, employeeId: session.employeeId },
+				_max: { servedNumber: true },
+			});
+			const offset = (maximum._max.servedNumber ?? 0) + 1;
+			await tx.serviceSession.updateMany({
+				where: {
+					workDayId: session.workDayId,
+					employeeId: session.employeeId,
+					servedNumber: { gt: session.servedNumber },
+				},
+				data: { servedNumber: { increment: offset } },
+			});
+			await tx.serviceSession.updateMany({
+				where: {
+					workDayId: session.workDayId,
+					employeeId: session.employeeId,
+					servedNumber: { gt: session.servedNumber + offset },
+				},
+				data: { servedNumber: { decrement: offset + 1 } },
+			});
+			return { status: "deleted", id: sessionId };
 		});
 	}
 	async pay(merchantId: string, sessionId: string, data: PaymentDto) {

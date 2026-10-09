@@ -3,10 +3,13 @@ import { MerchantId } from "./auth";
 import {
 	AssignmentDto,
 	AvailabilityDto,
+	CreateServedCustomerDto,
 	CreateEmployeeDto,
 	PaymentDto,
+	ReorderServedCustomersDto,
 	StartWorkDayDto,
 	UpdateEmployeeDto,
+	UpdateServedCustomerDto,
 } from "./dtos";
 import { EmployeesService } from "./employees.service";
 import { WorkDaysService } from "./work-days.service";
@@ -59,6 +62,20 @@ export class WorkDaysController {
 	) {
 		return this.days.assign(merchantId, id, data);
 	}
+	@Post(":id/served-customers") createServedCustomer(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Body() data: CreateServedCustomerDto,
+	) {
+		return this.days.createServedCustomer(merchantId, id, data);
+	}
+	@Patch(":id/served-customers/order") reorderServedCustomers(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Body() data: ReorderServedCustomersDto,
+	) {
+		return this.days.reorderServedCustomers(merchantId, id, data);
+	}
 	@Post(":id/close") close(@MerchantId() merchantId: string, @Param("id") id: string) {
 		return this.days.close(merchantId, id);
 	}
@@ -76,6 +93,19 @@ export class SessionsController {
 		@Body() data: PaymentDto,
 	) {
 		return this.days.pay(merchantId, id, data);
+	}
+	@Patch(":id/served-customer") updateServedCustomer(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Body() data: UpdateServedCustomerDto,
+	) {
+		return this.days.updateServedCustomer(merchantId, id, data);
+	}
+	@Delete(":id/served-customer") deleteServedCustomer(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+	) {
+		return this.days.deleteServedCustomer(merchantId, id);
 	}
 	@Delete(":id") remove(@MerchantId() merchantId: string, @Param("id") id: string) {
 		return this.days.removeSession(merchantId, id);

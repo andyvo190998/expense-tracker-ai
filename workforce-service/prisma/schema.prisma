@@ -75,6 +75,7 @@ model ServiceSession {
   workDayId      String        @map("work_day_id") @db.Uuid
   employeeId     String        @map("employee_id") @db.Uuid
   sequenceNumber Int           @map("sequence_number")
+  servedNumber   Int           @map("served_number")
   customerName   String?       @map("customer_name")
   status         SessionStatus @default(IN_PROGRESS)
   startedAt      DateTime      @default(now()) @map("started_at") @db.Timestamptz
@@ -85,6 +86,7 @@ model ServiceSession {
   payments       Payment[]
 
   @@unique([workDayId, sequenceNumber])
+  @@unique([workDayId, employeeId, servedNumber])
   @@index([merchantId, workDayId, status])
   @@index([employeeId, status])
   @@map("service_sessions")

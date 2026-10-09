@@ -6,6 +6,7 @@ export type Session = {
 	id: string;
 	employeeId: string;
 	sequenceNumber: number;
+	servedNumber: number;
 	customerName: string | null;
 	status: "IN_PROGRESS" | "PAID" | "CANCELLED";
 	startedAt: string;
