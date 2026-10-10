@@ -15,7 +15,7 @@ const sessions = [
 		servedNumber: 2,
 		customerName: "Mai",
 		status: "PAID" as const,
-		payments: [{ amount: "20.00", currency: "EUR", method: "CASH" as const }],
+		payments: [{ id: "payment-3", serviceName: "Nails", amount: "20.00", currency: "EUR", method: "CASH" as const }],
 	},
 	{
 		id: "first",
@@ -23,7 +23,10 @@ const sessions = [
 		servedNumber: 1,
 		customerName: "Lan",
 		status: "PAID" as const,
-		payments: [{ amount: "10.00", currency: "EUR", method: "PAYPAL" as const }],
+		payments: [
+			{ id: "payment-1", serviceName: "Haircut", amount: "20.00", currency: "EUR", method: "CASH" as const },
+			{ id: "payment-2", serviceName: "Color", amount: "40.00", currency: "EUR", method: "PAYPAL" as const },
+		],
 	},
 ];
 
@@ -55,22 +58,35 @@ it("creates, edits, and deletes numbered served customers", async () => {
 	fireEvent.change(screen.getByLabelText("New customer name"), {
 		target: { value: "Hoa" },
 	});
-	fireEvent.change(screen.getByLabelText("New customer amount"), {
-		target: { value: "30.50" },
+	fireEvent.change(screen.getByLabelText("Service 1 name"), {
+		target: { value: "Haircut" },
 	});
+	fireEvent.change(screen.getByLabelText("Service 1 amount"), {
+		target: { value: "20.00" },
+	});
+	fireEvent.click(screen.getByRole("button", { name: "Add service" }));
+	fireEvent.change(screen.getByLabelText("Service 2 name"), { target: { value: "Color" } });
+	fireEvent.change(screen.getByLabelText("Service 2 amount"), { target: { value: "40.00" } });
 	fireEvent.click(screen.getByRole("button", { name: "Add customer" }));
 	expect(onCreate).toHaveBeenCalledWith({
 		servedNumber: 3,
 		customerName: "Hoa",
-		amount: "30.50",
-		method: "CASH",
+		services: [
+			{ serviceName: "Haircut", amount: "20.00", currency: "EUR", method: "CASH" },
+			{ serviceName: "Color", amount: "40.00", currency: "EUR", method: "CASH" },
+		],
 	});
 
 	const lanRow = await screen.findByRole("row", { name: /1 Lan/ });
+	expect(lanRow).toHaveTextContent("€60.00");
+	expect(lanRow).toHaveTextContent("1");
 	expect(screen.queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
 	expect(screen.queryByRole("button", { name: "Edit Lan" })).not.toBeInTheDocument();
 	fireEvent.click(lanRow);
 	expect(await screen.findByRole("dialog", { name: "Customer 1" })).toBeInTheDocument();
+	expect(screen.getByText("Haircut")).toBeInTheDocument();
+	expect(screen.getByText("Color")).toBeInTheDocument();
+	expect(screen.getByText("PayPal")).toBeInTheDocument();
 	fireEvent.click(screen.getByRole("button", { name: "Edit Lan" }));
 	fireEvent.change(screen.getByLabelText("Customer number"), {
 		target: { value: "2" },
@@ -82,8 +98,10 @@ it("creates, edits, and deletes numbered served customers", async () => {
 	expect(onUpdate).toHaveBeenCalledWith("first", {
 		servedNumber: 2,
 		customerName: "Lan Anh",
-		amount: "10.00",
-		method: "PAYPAL",
+		services: [
+			{ serviceName: "Haircut", amount: "20.00", currency: "EUR", method: "CASH" },
+			{ serviceName: "Color", amount: "40.00", currency: "EUR", method: "PAYPAL" },
+		],
 	});
 
 	fireEvent.click(await screen.findByRole("row", { name: /2 Mai/ }));
@@ -109,13 +127,17 @@ it("keeps entered values when creating a served customer fails", async () => {
 	fireEvent.click(screen.getByRole("button", { name: "Add customer" }));
 	const name = screen.getByLabelText("New customer name");
 	fireEvent.change(name, { target: { value: "Hoa" } });
-	fireEvent.change(screen.getByLabelText("New customer amount"), {
+	fireEvent.change(screen.getByLabelText("Service 1 name"), {
+		target: { value: "Haircut" },
+	});
+	fireEvent.change(screen.getByLabelText("Service 1 amount"), {
 		target: { value: "30.50" },
 	});
 	fireEvent.click(screen.getByRole("button", { name: "Add customer" }));
 
 	await act(() => Promise.resolve());
 	expect(name).toHaveValue("Hoa");
+	expect(screen.getByLabelText("Service 1 name")).toHaveValue("Haircut");
 });
 
 it("builds the persisted order after moving a customer row", () => {

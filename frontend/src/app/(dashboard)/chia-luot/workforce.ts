@@ -12,7 +12,7 @@ export type Session = {
 	startedAt: string;
 	completedAt: string | null;
 	employee: Employee;
-	payments: { amount: string; currency: string; method: PaymentMethod }[];
+	payments: { id: string; serviceName: string; amount: string | null; currency: string; method: PaymentMethod | null }[];
 };
 export type RosterItem = {
 	employeeId: string;
@@ -22,6 +22,7 @@ export type RosterItem = {
 export type WorkDay = {
 	id: string;
 	nextPosition: number;
+	nextEmployeeId: string | null;
 	roster: {
 		employeeId: string;
 		position: number;
@@ -33,6 +34,7 @@ export type WorkDay = {
 export type EmployeeSummary = {
 	employeeId: string;
 	customersServed: number;
+	roundsEarned: number;
 	revenue: string;
 };
 export type Summary = {
@@ -41,18 +43,6 @@ export type Summary = {
 	total: string;
 	employees: EmployeeSummary[];
 };
-
-export function nextEmployeeId(
-	roster: Pick<WorkDay["roster"][number], "employeeId" | "position" | "isAvailable">[],
-	nextPosition: number,
-	busy: ReadonlySet<string>,
-) {
-	const ordered = [...roster].sort((a, b) => a.position - b.position);
-	for (let offset = 0; offset < ordered.length; offset++) {
-		const entry = ordered[(nextPosition + offset) % ordered.length];
-		if (entry.isAvailable && !busy.has(entry.employeeId)) return entry.employeeId;
-	}
-}
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await authFetch(`/api/workforce/${path}`, init);

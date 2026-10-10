@@ -34,11 +34,11 @@ import {
 	elapsed,
 	type Employee,
 	type EmployeeSummary,
-	type PaymentMethod,
 	type RosterItem,
 	type Session,
 	type WorkDay,
 } from "../workforce";
+import { ServiceEditor, serviceTotals, type ServiceInput } from "./service-editor";
 
 export function QuickAssignDialog({
 	employee,
@@ -107,6 +107,59 @@ export function CancelServiceDialog({
 					<Button variant="destructive" onClick={onConfirm}>
 						<CircleX /> Delete service
 					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+export function ActiveServicesDialog({
+	onAdd,
+	onDelete,
+	onOpenChange,
+	onUpdate,
+	open,
+	session,
+}: {
+	onAdd: () => void;
+	onDelete: (serviceId: string) => void;
+	onOpenChange: (open: boolean) => void;
+	onUpdate: (serviceId: string, serviceName: string) => void;
+	open: boolean;
+	session: Session;
+}) {
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Services for {session.customerName || "customer"}</DialogTitle>
+					<DialogDescription>Add, rename, or remove services while work is in progress.</DialogDescription>
+				</DialogHeader>
+				<div className="grid gap-2">
+					{session.payments.map((service, index) => (
+						<div className="flex gap-2" key={service.id}>
+							<Input
+								aria-label={`Service ${index + 1} name`}
+								defaultValue={service.serviceName}
+								maxLength={100}
+								placeholder={`Service ${index + 1} (optional)`}
+								onBlur={(event) => onUpdate(service.id, event.target.value)}
+							/>
+							<Button
+								aria-label={`Remove service ${index + 1}`}
+								disabled={session.payments.length === 1}
+								onClick={() => onDelete(service.id)}
+								size="icon"
+								variant="ghost"
+							>
+								<Trash2 />
+							</Button>
+						</div>
+					))}
+				</div>
+				<DialogFooter>
+					<Button onClick={onAdd} type="button" variant="outline"><Plus /> Add service</Button>
+					<Button onClick={() => onOpenChange(false)}>Done</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
@@ -268,6 +321,7 @@ export function EmployeesCard({
 
 export function EmployeeCard({
 	active,
+	canSetNext = true,
 	entry,
 	index,
 	isNext,
@@ -276,10 +330,12 @@ export function EmployeeCard({
 	onCancel,
 	onComplete,
 	onSetNext,
+	onViewServices = () => undefined,
 	onViewServed,
 	total,
 }: {
 	active?: Session;
+	canSetNext?: boolean;
 	entry: WorkDay["roster"][number];
 	index: number;
 	isNext: boolean;
@@ -288,6 +344,7 @@ export function EmployeeCard({
 	onCancel: (session: Session) => void;
 	onComplete: (session: Session) => void;
 	onSetNext: () => void;
+	onViewServices?: (session: Session) => void;
 	onViewServed: (employee: Employee) => void;
 	total?: EmployeeSummary;
 }) {
@@ -325,7 +382,7 @@ export function EmployeeCard({
 						<Switch
 							aria-label={`Set ${entry.employee.name} as next turn`}
 							checked={isNext}
-							disabled={isNext || !entry.isAvailable || Boolean(active)}
+							disabled={isNext || !canSetNext || !entry.isAvailable || Boolean(active)}
 							onCheckedChange={(checked) => {
 								if (checked) onSetNext();
 							}}
@@ -338,6 +395,9 @@ export function EmployeeCard({
 							<Clock3 className="size-5" />
 							{elapsed(active.startedAt)}
 						</div>
+						<Button className="justify-start" variant="ghost" onClick={() => onViewServices(active)}>
+							Services: <strong className="underline underline-offset-4">{active.payments.length}</strong>
+						</Button>
 						<div className="grid grid-cols-2 gap-2">
 							<Button variant="outline" onClick={() => onCancel(active)}>
 								<CircleX /> Cancel service
@@ -354,7 +414,7 @@ export function EmployeeCard({
 				) : (
 					<div className="h-16 rounded-md bg-muted/50" />
 				)}
-				<div className="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
+				<div className="grid grid-cols-3 gap-2 border-t pt-3 text-sm">
 					<Button
 						variant="ghost"
 						className="h-auto justify-start p-0"
@@ -368,6 +428,10 @@ export function EmployeeCard({
 							</strong>
 						</span>
 					</Button>
+					<div>
+						<div className="text-muted-foreground">Rounds</div>
+						<strong>{total?.roundsEarned ?? 0}</strong>
+					</div>
 					<div>
 						<div className="text-muted-foreground">Earned</div>
 						<strong>€{total?.revenue ?? "0.00"}</strong>
@@ -490,64 +554,29 @@ export function StartWorkDayDialog({
 }
 
 export function PaymentDialog({
-	amount,
-	method,
-	onAmountChange,
-	onMethodChange,
 	onOpenChange,
 	onPay,
+	onServicesChange,
 	open,
+	services,
 }: {
-	amount: string;
-	method: PaymentMethod;
-	onAmountChange: (amount: string) => void;
-	onMethodChange: (method: PaymentMethod) => void;
 	onOpenChange: (open: boolean) => void;
-	onPay: () => void;
+	onPay: (services: ServiceInput[]) => void;
+	onServicesChange: (services: ServiceInput[]) => void;
 	open: boolean;
+	services: ServiceInput[];
 }) {
+	const totals = serviceTotals(services);
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Record payment</DialogTitle>
+					<DialogTitle>Finish customer</DialogTitle>
 				</DialogHeader>
-				<div className="flex flex-col gap-4">
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="amount">Amount (EUR)</Label>
-						<Input
-							id="amount"
-							inputMode="decimal"
-							value={amount}
-							onChange={(event) => onAmountChange(event.target.value)}
-							placeholder="0.00"
-						/>
-					</div>
-					<div className="flex flex-col gap-2">
-						<Label>Method</Label>
-						<div className="grid grid-cols-2 gap-3">
-							<Button
-								type="button"
-								variant={method === "CASH" ? "default" : "outline"}
-								aria-pressed={method === "CASH"}
-								onClick={() => onMethodChange("CASH")}
-							>
-								<Banknote /> Cash
-							</Button>
-							<Button
-								type="button"
-								variant={method === "PAYPAL" ? "default" : "outline"}
-								aria-pressed={method === "PAYPAL"}
-								onClick={() => onMethodChange("PAYPAL")}
-							>
-								<Image src={paypalImage} alt="" className="size-4" /> PayPal
-							</Button>
-						</div>
-					</div>
-				</div>
+				<ServiceEditor services={services} onChange={onServicesChange} lockNames />
 				<DialogFooter>
-					<Button onClick={onPay}>
-						<Banknote /> Record payment
+					<Button disabled={!totals.valid} onClick={() => onPay(services)}>
+						<Check /> Finish customer
 					</Button>
 				</DialogFooter>
 			</DialogContent>

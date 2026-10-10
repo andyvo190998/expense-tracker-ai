@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { EmployeeCard, EmployeesCard } from "./workday-components";
+import { EmployeeCard, EmployeesCard, PaymentDialog } from "./workday-components";
+import { emptyService, type ServiceInput } from "./service-editor";
 
 afterEach(cleanup);
 
@@ -37,6 +39,25 @@ it("does not allow the current next employee to be switched off", () => {
 			entry={entry}
 			index={0}
 			isNext
+			onAssign={() => undefined}
+			onAvailabilityChange={() => undefined}
+			onCancel={() => undefined}
+			onComplete={() => undefined}
+			onSetNext={() => undefined}
+			onViewServed={() => undefined}
+		/>,
+	);
+
+	expect(screen.getByRole("switch", { name: "Set Anna as next turn" })).toBeDisabled();
+});
+
+it("does not allow a higher-round employee to be set next", () => {
+	render(
+		<EmployeeCard
+			canSetNext={false}
+			entry={entry}
+			index={0}
+			isNext={false}
 			onAssign={() => undefined}
 			onAvailabilityChange={() => undefined}
 			onCancel={() => undefined}
@@ -109,4 +130,63 @@ it("requires confirmation before deleting an employee", () => {
 	fireEvent.click(screen.getByRole("button", { name: "Delete employee" }));
 
 	expect(onDelete).toHaveBeenCalledWith("employee-id");
+});
+
+it("records multiple services with independent payment methods", () => {
+	const onPay = vi.fn();
+	function Harness() {
+		const [services, setServices] = useState<ServiceInput[]>([
+			{ id: "service-1", serviceName: "Haircut", amount: "", currency: "EUR", method: "CASH" },
+		]);
+		return <PaymentDialog
+			onOpenChange={() => undefined}
+			onPay={onPay}
+			onServicesChange={setServices}
+			open
+			services={services}
+		/>;
+	}
+	render(<Harness />);
+
+	fireEvent.change(screen.getByLabelText("Service 1 amount"), { target: { value: "20.00" } });
+	fireEvent.click(screen.getByRole("button", { name: "Add service" }));
+	fireEvent.change(screen.getByLabelText("Service 2 amount"), { target: { value: "40.00" } });
+	fireEvent.click(screen.getAllByRole("button", { name: "PayPal" })[1]);
+	fireEvent.click(screen.getByRole("button", { name: "Finish customer" }));
+
+	expect(onPay).toHaveBeenCalledWith([
+		{ id: "service-1", serviceName: "Haircut", amount: "20.00", currency: "EUR", method: "CASH" },
+		{ serviceName: "", amount: "40.00", currency: "EUR", method: "PAYPAL" },
+	]);
+});
+
+it("disables completion until every service is valid", () => {
+	render(<PaymentDialog
+		onOpenChange={() => undefined}
+		onPay={() => undefined}
+		onServicesChange={() => undefined}
+		open
+		services={[emptyService()]}
+	/>);
+
+	expect(screen.getByRole("button", { name: "Finish customer" })).toBeDisabled();
+});
+
+it("shows customers, rounds, and revenue separately", () => {
+	render(<EmployeeCard
+		entry={entry}
+		index={0}
+		isNext={false}
+		onAssign={() => undefined}
+		onAvailabilityChange={() => undefined}
+		onCancel={() => undefined}
+		onComplete={() => undefined}
+		onSetNext={() => undefined}
+		onViewServed={() => undefined}
+		total={{ employeeId: "employee-id", customersServed: 1, roundsEarned: 2, revenue: "90.00" }}
+	/>);
+
+	expect(screen.getByText("Customers").parentElement).toHaveTextContent("1");
+	expect(screen.getByText("Rounds").parentElement).toHaveTextContent("2");
+	expect(screen.getByText("Earned").parentElement).toHaveTextContent("€90.00");
 });

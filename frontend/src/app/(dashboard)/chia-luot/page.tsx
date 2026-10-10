@@ -10,6 +10,7 @@ import {
 } from "./components/served-customers-dialog";
 import {
 	CancelServiceDialog,
+	ActiveServicesDialog,
 	EmployeeCard,
 	EmployeesCard,
 	PageHeader,
@@ -21,13 +22,12 @@ import {
 import {
 	api,
 	type Employee,
-	nextEmployeeId,
-	type PaymentMethod,
 	type RosterItem,
 	type Session,
 	type Summary,
 	type WorkDay,
 } from "./workforce";
+import { emptyService, type ServiceInput } from "./components/service-editor";
 
 export default function ChiaLuotPage() {
 	const { user } = useAuth();
@@ -40,8 +40,8 @@ export default function ChiaLuotPage() {
 	const [cancelSession, setCancelSession] = useState<Session | null>(null);
 	const [quickAssignEmployee, setQuickAssignEmployee] = useState<Employee | null>(null);
 	const [servedEmployee, setServedEmployee] = useState<Employee | null>(null);
-	const [amount, setAmount] = useState("");
-	const [method, setMethod] = useState<PaymentMethod>("CASH");
+	const [servicesSessionId, setServicesSessionId] = useState<string | null>(null);
+	const [services, setServices] = useState<ServiceInput[]>([emptyService()]);
 	const [, tick] = useState(0);
 	const queryKey = ["workforce", user?.id ?? "visitor"] as const;
 	const employeesQuery = useQuery({
@@ -60,6 +60,7 @@ export default function ChiaLuotPage() {
 		enabled: Boolean(day),
 	});
 	const summary = summaryQuery.data ?? null;
+	const servicesSession = day?.sessions.find((session) => session.id === servicesSessionId) ?? null;
 	const mutation = useMutation({
 		mutationFn: ({ path, init }: { path: string; init: RequestInit }) =>
 			api<unknown>(path, init),
@@ -80,17 +81,18 @@ export default function ChiaLuotPage() {
 			),
 		[day],
 	);
-	const nextEmployee = useMemo(
-		() =>
-			day
-				? nextEmployeeId(day.roster, day.nextPosition, new Set(activeByEmployee.keys()))
-				: undefined,
-		[activeByEmployee, day],
-	);
 	const totals = useMemo(
 		() => new Map(summary?.employees.map((item) => [item.employeeId, item]) ?? []),
 		[summary],
 	);
+	const minimumRounds = useMemo(() => {
+		const eligible = day?.roster.filter(
+			(entry) => entry.isAvailable && !activeByEmployee.has(entry.employeeId),
+		) ?? [];
+		return eligible.length
+			? Math.min(...eligible.map((entry) => totals.get(entry.employeeId)?.roundsEarned ?? 0))
+			: undefined;
+	}, [activeByEmployee, day, totals]);
 
 	async function mutate<T = unknown>(path: string, init: RequestInit) {
 		try {
@@ -184,16 +186,41 @@ export default function ChiaLuotPage() {
 	}
 	function complete(session: Session) {
 		setPaymentSession(session);
-		setAmount("");
+		setServices(session.payments.length ? session.payments.map((service) => ({
+			id: service.id,
+			serviceName: service.serviceName,
+			amount: "",
+			currency: "EUR",
+			method: "CASH",
+		})) : [emptyService()]);
 	}
-	async function pay() {
+	async function addActiveService() {
+		if (!servicesSessionId) return;
+		await mutate(`sessions/${servicesSessionId}/services`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ serviceName: "" }),
+		});
+	}
+	async function updateActiveService(serviceId: string, serviceName: string) {
+		if (!servicesSessionId) return;
+		await mutate(`sessions/${servicesSessionId}/services/${serviceId}`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ serviceName }),
+		});
+	}
+	async function deleteActiveService(serviceId: string) {
+		if (!servicesSessionId) return;
+		await mutate(`sessions/${servicesSessionId}/services/${serviceId}`, { method: "DELETE" });
+	}
+	async function pay(paymentServices: ServiceInput[]) {
 		if (
 			paymentSession &&
-			amount &&
 			(await mutate(`sessions/${paymentSession.id}/payments`, {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ amount, method, currency: "EUR" }),
+				body: JSON.stringify({ services: paymentServices }),
 			}))
 		) {
 			setPaymentSession(null);
@@ -211,7 +238,7 @@ export default function ChiaLuotPage() {
 		const result = await mutate(`work-days/${day.id}/served-customers`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ ...input, employeeId: servedEmployee.id, currency: "EUR" }),
+			body: JSON.stringify({ ...input, employeeId: servedEmployee.id }),
 		});
 		if (result) toast.success("Served customer added");
 		return Boolean(result);
@@ -268,9 +295,10 @@ export default function ChiaLuotPage() {
 							<EmployeeCard
 								key={entry.employeeId}
 								active={activeByEmployee.get(entry.employeeId)}
+								canSetNext={(totals.get(entry.employeeId)?.roundsEarned ?? 0) === minimumRounds}
 								entry={entry}
 								index={index}
-								isNext={entry.employeeId === nextEmployee}
+								isNext={entry.employeeId === day.nextEmployeeId}
 								onAssign={() => setQuickAssignEmployee(entry.employee)}
 								onAvailabilityChange={(isAvailable) =>
 									void mutate(
@@ -295,6 +323,7 @@ export default function ChiaLuotPage() {
 										{ method: "PATCH" },
 									)
 								}
+								onViewServices={(session) => setServicesSessionId(session.id)}
 								onViewServed={setServedEmployee}
 								total={totals.get(entry.employeeId)}
 							/>
@@ -323,14 +352,22 @@ export default function ChiaLuotPage() {
 				roster={roster}
 			/>
 			<PaymentDialog
-				amount={amount}
-				method={method}
-				onAmountChange={setAmount}
-				onMethodChange={setMethod}
 				onOpenChange={(open) => !open && setPaymentSession(null)}
-				onPay={() => void pay()}
+				onPay={(paymentServices) => void pay(paymentServices)}
+				onServicesChange={setServices}
 				open={Boolean(paymentSession)}
+				services={services}
 			/>
+			{servicesSession ? (
+				<ActiveServicesDialog
+					onAdd={() => void addActiveService()}
+					onDelete={(serviceId) => void deleteActiveService(serviceId)}
+					onOpenChange={(open) => !open && setServicesSessionId(null)}
+					onUpdate={(serviceId, serviceName) => void updateActiveService(serviceId, serviceName)}
+					open
+					session={servicesSession}
+				/>
+			) : null}
 			{cancelSession ? (
 				<CancelServiceDialog
 					onConfirm={() => void removeSession()}
