@@ -1,9 +1,21 @@
+import { Prisma } from "@prisma/client";
+
 export type RosterEntry = { employeeId: string; position: number; isAvailable: boolean };
+
+export function roundsForServices(
+	services: { amount: Prisma.Decimal | string | null; currency: string }[],
+) {
+	return services.filter(
+		(service) =>
+			service.currency === "EUR" && service.amount !== null && new Prisma.Decimal(service.amount).greaterThan(30),
+	).length;
+}
 
 export function selectNextEmployee(
 	roster: RosterEntry[],
 	nextPosition: number,
 	busy: Set<string>,
+	roundsByEmployee: ReadonlyMap<string, number>,
 	employeeId?: string,
 ) {
 	if (!roster.length) return null;
@@ -27,9 +39,18 @@ export function selectNextEmployee(
 					: nextPosition,
 		};
 	}
+	const eligible = ordered.filter((entry) => entry.isAvailable && !busy.has(entry.employeeId));
+	if (!eligible.length) return null;
+	const minimumRounds = Math.min(
+		...eligible.map((entry) => roundsByEmployee.get(entry.employeeId) ?? 0),
+	);
 	for (let offset = 0; offset < ordered.length; offset++) {
 		const entry = ordered[(nextPosition + offset) % ordered.length];
-		if (entry.isAvailable && !busy.has(entry.employeeId)) {
+		if (
+			entry.isAvailable &&
+			!busy.has(entry.employeeId) &&
+			(roundsByEmployee.get(entry.employeeId) ?? 0) === minimumRounds
+		) {
 			return {
 				employeeId: entry.employeeId,
 				nextPosition: (entry.position + 1) % ordered.length,

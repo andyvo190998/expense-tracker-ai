@@ -5,6 +5,7 @@ import {
 	AvailabilityDto,
 	CreateServedCustomerDto,
 	CreateEmployeeDto,
+	DraftServiceDto,
 	PaymentDto,
 	ReorderServedCustomersDto,
 	StartWorkDayDto,
@@ -94,6 +95,28 @@ export class WorkDaysController {
 @Controller("v1/sessions")
 export class SessionsController {
 	constructor(private readonly days: WorkDaysService) {}
+	@Post(":id/services") addService(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Body() data: DraftServiceDto,
+	) {
+		return this.days.addService(merchantId, id, data);
+	}
+	@Patch(":id/services/:serviceId") updateService(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Param("serviceId") serviceId: string,
+		@Body() data: DraftServiceDto,
+	) {
+		return this.days.updateService(merchantId, id, serviceId, data);
+	}
+	@Delete(":id/services/:serviceId") deleteService(
+		@MerchantId() merchantId: string,
+		@Param("id") id: string,
+		@Param("serviceId") serviceId: string,
+	) {
+		return this.days.deleteService(merchantId, id, serviceId);
+	}
 	@Post(":id/payments") pay(
 		@MerchantId() merchantId: string,
 		@Param("id") id: string,

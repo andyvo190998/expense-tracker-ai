@@ -1,5 +1,6 @@
 import {
 	ArrayNotEmpty,
+	Equals,
 	IsArray,
 	IsBoolean,
 	IsEnum,
@@ -19,6 +20,16 @@ import { PaymentMethod } from "@prisma/client";
 
 export class CreateEmployeeDto {
 	@IsString() @IsNotEmpty() @MaxLength(100) name!: string;
+}
+export class ServiceInputDto {
+	@IsOptional() @IsUUID() id?: string;
+	@IsString() @MaxLength(100) serviceName = "";
+	@Matches(/^(?!0+(?:\.0{1,2})?$)\d{1,10}(?:\.\d{1,2})?$/) amount!: string;
+	@IsOptional() @Equals("EUR") currency = "EUR";
+	@IsEnum(PaymentMethod) method!: PaymentMethod;
+}
+export class DraftServiceDto {
+	@IsString() @MaxLength(100) serviceName = "";
 }
 export class UpdateEmployeeDto {
 	@IsOptional() @IsString() @IsNotEmpty() @MaxLength(100) name?: string;
@@ -45,9 +56,11 @@ export class AssignmentDto {
 	@IsOptional() @IsUUID() employeeId?: string;
 }
 export class PaymentDto {
-	@Matches(/^\d{1,10}(\.\d{1,2})?$/) amount!: string;
-	@IsEnum(PaymentMethod) method!: PaymentMethod;
-	@IsOptional() @Matches(/^[A-Z]{3}$/) currency = "EUR";
+	@IsArray()
+	@ArrayNotEmpty()
+	@ValidateNested({ each: true })
+	@Type(() => ServiceInputDto)
+	services!: ServiceInputDto[];
 }
 export class CreateServedCustomerDto extends PaymentDto {
 	@IsUUID() employeeId!: string;
@@ -57,8 +70,12 @@ export class CreateServedCustomerDto extends PaymentDto {
 export class UpdateServedCustomerDto {
 	@IsOptional() @IsInt() @Min(1) servedNumber?: number;
 	@IsOptional() @IsString() @MaxLength(100) customerName?: string;
-	@IsOptional() @Matches(/^\d{1,10}(\.\d{1,2})?$/) amount?: string;
-	@IsOptional() @IsEnum(PaymentMethod) method?: PaymentMethod;
+	@IsOptional()
+	@IsArray()
+	@ArrayNotEmpty()
+	@ValidateNested({ each: true })
+	@Type(() => ServiceInputDto)
+	services?: ServiceInputDto[];
 }
 export class ReorderServedCustomersDto {
 	@IsUUID() employeeId!: string;

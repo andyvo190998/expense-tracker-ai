@@ -9,8 +9,10 @@ import {
 	Check,
 	CircleX,
 	Clock3,
+	Pencil,
 	Play,
 	Plus,
+	Trash2,
 	Users,
 } from "lucide-react";
 import paypalImage from "@/assets/paypal.png";
@@ -145,40 +147,122 @@ export function EmployeesCard({
 	employees,
 	name,
 	onAdd,
+	onDelete,
 	onNameChange,
+	onUpdate,
 }: {
 	employees: Employee[];
 	name: string;
 	onAdd: () => void;
+	onDelete: (id: string) => void;
 	onNameChange: (name: string) => void;
+	onUpdate: (id: string, name: string) => void;
 }) {
+	const [editing, setEditing] = useState<Employee | null>(null);
+	const [deleting, setDeleting] = useState<Employee | null>(null);
+	const [editedName, setEditedName] = useState("");
+
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Employees</CardTitle>
-			</CardHeader>
-			<CardContent className="flex flex-col gap-4">
-				<div className="flex max-w-md gap-2">
-					<Input
-						value={name}
-						onChange={(event) => onNameChange(event.target.value)}
-						placeholder="Employee name"
-						onKeyDown={(event) => event.key === "Enter" && onAdd()}
-					/>
-					<Button onClick={onAdd}>
-						<Plus /> Add
-					</Button>
-				</div>
-				<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-					{employees.map((employee, index) => (
-						<div key={employee.id} className="rounded-lg border p-4">
-							<span className="mr-3 text-muted-foreground">{index + 1}</span>
-							{employee.name}
-						</div>
-					))}
-				</div>
-			</CardContent>
-		</Card>
+		<>
+			<Card>
+				<CardHeader>
+					<CardTitle>Employees</CardTitle>
+				</CardHeader>
+				<CardContent className="flex flex-col gap-4">
+					<div className="flex max-w-md gap-2">
+						<Input
+							value={name}
+							onChange={(event) => onNameChange(event.target.value)}
+							placeholder="Employee name"
+							onKeyDown={(event) => event.key === "Enter" && onAdd()}
+						/>
+						<Button onClick={onAdd}>
+							<Plus /> Add
+						</Button>
+					</div>
+					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+						{employees.map((employee, index) => (
+							<div key={employee.id} className="flex items-center gap-2 rounded-lg border p-4">
+								<span className="text-muted-foreground">{index + 1}</span>
+								{editing?.id === employee.id ? (
+									<>
+										<Input
+											aria-label={`Employee name for ${employee.name}`}
+											value={editedName}
+											onChange={(event) => setEditedName(event.target.value)}
+										/>
+										<Button
+											size="sm"
+											disabled={!editedName.trim()}
+											onClick={() => {
+												onUpdate(employee.id, editedName.trim());
+												setEditing(null);
+											}}
+											aria-label={`Save ${editedName.trim()}`}
+										>
+											<Check />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											aria-label={`Cancel editing ${employee.name}`}
+											onClick={() => setEditing(null)}
+										>
+											<CircleX />
+										</Button>
+									</>
+								) : (
+									<>
+										<span className="mr-auto">{employee.name}</span>
+										<Button
+											variant="ghost"
+											size="icon"
+											aria-label={`Edit ${employee.name}`}
+											onClick={() => {
+												setEditing(employee);
+												setEditedName(employee.name);
+											}}
+										>
+											<Pencil />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											aria-label={`Delete ${employee.name}`}
+											onClick={() => setDeleting(employee)}
+										>
+											<Trash2 />
+										</Button>
+									</>
+								)}
+							</div>
+						))}
+					</div>
+				</CardContent>
+			</Card>
+			<Dialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Delete {deleting?.name}?</DialogTitle>
+						<DialogDescription>
+							The employee will be removed from the active employee list.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (deleting) onDelete(deleting.id);
+								setDeleting(null);
+							}}
+						>
+							<Trash2 /> Delete employee
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
 	);
 }
 

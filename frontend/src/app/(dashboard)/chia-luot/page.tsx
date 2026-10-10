@@ -112,6 +112,20 @@ export default function ChiaLuotPage() {
 			toast.success("Employee added");
 		}
 	}
+	async function updateEmployee(id: string, employeeName: string) {
+		if (
+			await mutate(`employees/${id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: employeeName }),
+			})
+		)
+			toast.success("Employee updated");
+	}
+	async function deleteEmployee(id: string) {
+		if (await mutate(`employees/${id}`, { method: "DELETE" }))
+			toast.success("Employee deleted");
+	}
 	function openStart() {
 		setRoster(
 			employees.map((employee) => ({
@@ -243,7 +257,9 @@ export default function ChiaLuotPage() {
 					employees={employees}
 					name={name}
 					onAdd={() => void addEmployee()}
+					onDelete={(id) => void deleteEmployee(id)}
 					onNameChange={setName}
+					onUpdate={(id, employeeName) => void updateEmployee(id, employeeName)}
 				/>
 			) : (
 				<>

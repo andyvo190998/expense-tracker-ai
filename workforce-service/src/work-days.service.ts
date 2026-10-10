@@ -5,12 +5,13 @@ import {
 	AssignmentDto,
 	AvailabilityDto,
 	CreateServedCustomerDto,
+	DraftServiceDto,
 	PaymentDto,
 	ReorderServedCustomersDto,
 	StartWorkDayDto,
 	UpdateServedCustomerDto,
 } from "./dtos";
-import { selectNextEmployee } from "./work-days/turn-selection";
+import { roundsForServices, selectNextEmployee } from "./work-days/turn-selection";
 
 const dayInclude = {
 	roster: { include: { employee: true }, orderBy: { position: "asc" as const } },
@@ -19,15 +20,17 @@ const dayInclude = {
 		orderBy: { sequenceNumber: "asc" as const },
 	},
 };
+type DayWithDetails = Prisma.WorkDayGetPayload<{ include: typeof dayInclude }>;
 
 @Injectable()
 export class WorkDaysService {
 	constructor(private readonly db: PrismaService) {}
-	current(merchantId: string) {
-		return this.db.workDay.findFirst({
+	async current(merchantId: string) {
+		const day = await this.db.workDay.findFirst({
 			where: { merchantId, status: "OPEN" },
 			include: dayInclude,
 		});
+		return day ? this.withNextEmployee(day) : null;
 	}
 	get(merchantId: string, id: string) {
 		return this.requireDay(merchantId, id);
@@ -48,7 +51,7 @@ export class WorkDaysService {
 		if (owned !== data.employees.length)
 			throw new NotFoundException({ code: "EMPLOYEE_NOT_FOUND" });
 		try {
-			return await this.db.workDay.create({
+			const day = await this.db.workDay.create({
 				data: {
 					merchantId,
 					businessDate: new Date(`${data.businessDate}T00:00:00.000Z`),
@@ -63,6 +66,7 @@ export class WorkDaysService {
 				},
 				include: dayInclude,
 			});
+			return this.withNextEmployee(day);
 		} catch (error) {
 			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
 				throw new ConflictException({ code: "WORK_DAY_ALREADY_OPEN" });
@@ -98,11 +102,23 @@ export class WorkDaysService {
 			if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
 			const entry = day.roster.find((item) => item.employeeId === employeeId);
 			if (!entry) throw new NotFoundException({ code: "EMPLOYEE_NOT_FOUND" });
-			const active = await tx.serviceSession.findFirst({
-				where: { workDayId: dayId, employeeId, status: "IN_PROGRESS" },
+			const sessions = await tx.serviceSession.findMany({
+				where: { workDayId: dayId },
+				include: { payments: true },
 			});
-			if (!entry.isAvailable || active)
+			const busy = new Set(
+				sessions.filter((session) => session.status === "IN_PROGRESS").map((session) => session.employeeId),
+			);
+			if (!entry.isAvailable || busy.has(employeeId))
 				throw new ConflictException({ code: "NO_ELIGIBLE_EMPLOYEE" });
+			const selected = selectNextEmployee(
+				day.roster,
+				entry.position,
+				busy,
+				this.roundsByEmployee(day.roster, sessions),
+			);
+			if (selected?.employeeId !== employeeId)
+				throw new ConflictException({ code: "EMPLOYEE_NOT_MINIMUM_ROUNDS" });
 			return tx.workDay.update({
 				where: { id: dayId },
 				data: { nextPosition: entry.position },
@@ -117,14 +133,19 @@ export class WorkDaysService {
 				include: { roster: true },
 			});
 			if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
-			const busyRows = await tx.serviceSession.findMany({
-				where: { workDayId: dayId, status: "IN_PROGRESS" },
-				select: { employeeId: true },
+			const sessions = await tx.serviceSession.findMany({
+				where: { workDayId: dayId },
+				include: { payments: true },
 			});
+			const busy = new Set(
+				sessions.filter((session) => session.status === "IN_PROGRESS").map((session) => session.employeeId),
+			);
+			const rounds = this.roundsByEmployee(day.roster, sessions);
 			const selected = selectNextEmployee(
 				day.roster,
 				day.nextPosition,
-				new Set(busyRows.map((row) => row.employeeId)),
+				busy,
+				rounds,
 				data.employeeId,
 			);
 			if (!selected) throw new ConflictException({ code: "NO_ELIGIBLE_EMPLOYEE" });
@@ -151,14 +172,59 @@ export class WorkDaysService {
 					servedNumber: servedNumber + 1,
 					customerName: data.customerName?.trim() || null,
 				},
-				include: { employee: true },
+				include: { employee: true, payments: true },
+			});
+			await tx.payment.create({
+				data: {
+					merchantId,
+					serviceSessionId: session.id,
+					serviceName: "",
+					amount: null,
+					method: null,
+				},
 			});
 			await tx.workDay.update({
 				where: { id: dayId },
 				data: { nextPosition: selected.nextPosition },
 			});
-			return session;
+			return tx.serviceSession.findUnique({
+				where: { id: session.id },
+				include: { employee: true, payments: true },
+			});
 		});
+	}
+	async addService(merchantId: string, sessionId: string, data: DraftServiceDto) {
+		await this.requireInProgressSession(merchantId, sessionId);
+		return this.db.payment.create({
+			data: {
+				merchantId,
+				serviceSessionId: sessionId,
+				serviceName: data.serviceName.trim(),
+				amount: null,
+				method: null,
+			},
+		});
+	}
+	async updateService(merchantId: string, sessionId: string, serviceId: string, data: DraftServiceDto) {
+		await this.requireInProgressSession(merchantId, sessionId);
+		const updated = await this.db.payment.updateMany({
+			where: { id: serviceId, serviceSessionId: sessionId, merchantId },
+			data: { serviceName: data.serviceName.trim() },
+		});
+		if (!updated.count) throw new NotFoundException({ code: "SERVICE_NOT_FOUND" });
+		return this.db.payment.findUnique({ where: { id: serviceId } });
+	}
+	async deleteService(merchantId: string, sessionId: string, serviceId: string) {
+		await this.requireInProgressSession(merchantId, sessionId);
+		const services = await this.db.payment.findMany({
+			where: { serviceSessionId: sessionId, merchantId },
+			select: { id: true },
+		});
+		if (!services.some((service) => service.id === serviceId))
+			throw new NotFoundException({ code: "SERVICE_NOT_FOUND" });
+		if (services.length === 1) throw new ConflictException({ code: "SERVICE_REQUIRED" });
+		await this.db.payment.delete({ where: { id: serviceId } });
+		return { status: "deleted", id: serviceId };
 	}
 	async createServedCustomer(
 		merchantId: string,
@@ -201,14 +267,13 @@ export class WorkDaysService {
 						customerName: data.customerName?.trim() || null,
 						status: "PAID",
 						completedAt: new Date(),
-						payments: {
-							create: {
-								merchantId,
-								amount: new Prisma.Decimal(data.amount),
-								currency: data.currency,
-								method: data.method,
-							},
-						},
+						payments: { create: data.services.map((service) => ({
+							merchantId,
+							serviceName: service.serviceName.trim(),
+							amount: new Prisma.Decimal(service.amount),
+							currency: service.currency,
+							method: service.method,
+						})) },
 					},
 					include: { employee: true, payments: true },
 				});
@@ -311,14 +376,12 @@ export class WorkDaysService {
 					});
 				}
 			}
-			if ((data.amount || data.method) && session.payments[0])
-				await tx.payment.update({
-					where: { id: session.payments[0].id },
-					data: {
-						amount: data.amount ? new Prisma.Decimal(data.amount) : undefined,
-						method: data.method,
-					},
+			if (data.services) {
+				await tx.payment.deleteMany({ where: { serviceSessionId: session.id, merchantId } });
+				await tx.payment.createMany({
+					data: data.services.map((service) => this.paymentData(merchantId, session.id, service)),
 				});
+			}
 			const updated = await tx.serviceSession.update({
 				where: { id: session.id },
 				data: {
@@ -368,36 +431,53 @@ export class WorkDaysService {
 			await tx.$queryRaw`SELECT id FROM service_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
 			const session = await tx.serviceSession.findFirst({
 				where: { id: sessionId, merchantId },
+				include: { payments: true },
 			});
 			if (!session) throw new NotFoundException({ code: "SESSION_NOT_FOUND" });
 			if (session.status !== "IN_PROGRESS")
 				throw new ConflictException({ code: "INVALID_SESSION_STATE" });
-			const payment = await tx.payment.create({
-				data: {
-					merchantId,
-					serviceSessionId: sessionId,
-					amount: new Prisma.Decimal(data.amount),
-					currency: data.currency,
-					method: data.method,
-				},
-			});
-			await tx.serviceSession.update({
+			if (session.payments.length) {
+				const existingServices = data.services.filter((service) => service.id);
+				const ids = new Set(existingServices.map((service) => service.id));
+				if (ids.size !== session.payments.length || session.payments.some((payment) => !ids.has(payment.id)))
+					throw new ConflictException({ code: "SERVICES_CHANGED" });
+				await Promise.all(existingServices.map((service) => tx.payment.update({
+					where: { id: service.id! },
+					data: {
+						amount: new Prisma.Decimal(service.amount),
+						currency: service.currency,
+						method: service.method,
+					},
+				})));
+				const addedServices = data.services.filter((service) => !service.id);
+				if (addedServices.length) {
+					await tx.payment.createMany({
+						data: addedServices.map((service) => this.paymentData(merchantId, sessionId, service)),
+					});
+				}
+			} else {
+				await tx.payment.createMany({
+					data: data.services.map((service) => this.paymentData(merchantId, sessionId, service)),
+				});
+			}
+			return tx.serviceSession.update({
 				where: { id: sessionId },
 				data: { status: "PAID", completedAt: new Date() },
+				include: { employee: true, payments: true },
 			});
-			return payment;
 		});
 	}
 	async removeSession(merchantId: string, sessionId: string) {
-		const result = await this.db.serviceSession.deleteMany({
-			where: {
-				id: sessionId,
-				merchantId,
-				status: "IN_PROGRESS",
-			},
+		return this.db.$transaction(async (tx) => {
+			const session = await tx.serviceSession.findFirst({
+				where: { id: sessionId, merchantId, status: "IN_PROGRESS" },
+				select: { id: true },
+			});
+			if (!session) throw new ConflictException({ code: "INVALID_SESSION_STATE" });
+			await tx.payment.deleteMany({ where: { serviceSessionId: sessionId, merchantId } });
+			await tx.serviceSession.delete({ where: { id: sessionId } });
+			return { status: "deleted", id: sessionId };
 		});
-		if (!result.count) throw new ConflictException({ code: "INVALID_SESSION_STATE" });
-		return { status: "deleted", id: sessionId };
 	}
 	async close(merchantId: string, dayId: string) {
 		await this.db.$transaction(async (tx) => {
@@ -433,30 +513,27 @@ export class WorkDaysService {
 			const sessions = day.sessions.filter(
 				(session) => session.employeeId === employee.id && session.status === "PAID",
 			);
-			const revenue = sessions.reduce(
-				(sum, session) => sum.plus(session.payments[0]?.amount ?? 0),
+			const payments = sessions.flatMap((session) => session.payments);
+			const revenue = payments.reduce(
+				(sum, payment) => payment.amount ? sum.plus(payment.amount) : sum,
 				new Prisma.Decimal(0),
 			);
 			return {
 				employeeId: employee.id,
 				name: employee.name,
 				customersServed: sessions.length,
+				roundsEarned: roundsForServices(payments),
 				revenue: revenue.toFixed(2),
 			};
 		});
 		const paid = day.sessions.filter((session) => session.status === "PAID");
-		const cashTotal = paid.reduce(
-			(sum, session) =>
-				session.payments[0]?.method === "CASH"
-					? sum.plus(session.payments[0].amount)
-					: sum,
+		const payments = paid.flatMap((session) => session.payments);
+		const cashTotal = payments.reduce(
+			(sum, payment) => payment.method === "CASH" && payment.amount ? sum.plus(payment.amount) : sum,
 			new Prisma.Decimal(0),
 		);
-		const paypalTotal = paid.reduce(
-			(sum, session) =>
-				session.payments[0]?.method === "PAYPAL"
-					? sum.plus(session.payments[0].amount)
-					: sum,
+		const paypalTotal = payments.reduce(
+			(sum, payment) => payment.method === "PAYPAL" && payment.amount ? sum.plus(payment.amount) : sum,
 			new Prisma.Decimal(0),
 		);
 		return {
@@ -475,7 +552,7 @@ export class WorkDaysService {
 			include: dayInclude,
 		});
 		if (!day) throw new NotFoundException({ code: "WORK_DAY_NOT_FOUND" });
-		return day;
+		return this.withNextEmployee(day);
 	}
 	private async requireSession(merchantId: string, id: string) {
 		const session = await this.db.serviceSession.findFirst({
@@ -484,5 +561,55 @@ export class WorkDaysService {
 		});
 		if (!session) throw new NotFoundException({ code: "SESSION_NOT_FOUND" });
 		return session;
+	}
+	private async requireInProgressSession(merchantId: string, id: string) {
+		const session = await this.db.serviceSession.findFirst({
+			where: { id, merchantId, status: "IN_PROGRESS" },
+			select: { id: true },
+		});
+		if (!session) throw new ConflictException({ code: "INVALID_SESSION_STATE" });
+		return session;
+	}
+	private paymentData(
+		merchantId: string,
+		serviceSessionId: string,
+		service: PaymentDto["services"][number],
+	) {
+		return {
+			merchantId,
+			serviceSessionId,
+			serviceName: service.serviceName.trim(),
+			amount: new Prisma.Decimal(service.amount),
+			currency: service.currency,
+			method: service.method,
+		};
+	}
+	private roundsByEmployee(
+		roster: { employeeId: string }[],
+		sessions: { employeeId: string; status: SessionStatus; payments: { amount: Prisma.Decimal | null; currency: string }[] }[],
+	) {
+		const rounds = new Map(roster.map((entry) => [entry.employeeId, 0]));
+		for (const session of sessions) {
+			if (session.status !== "PAID") continue;
+			rounds.set(
+				session.employeeId,
+				(rounds.get(session.employeeId) ?? 0) + roundsForServices(session.payments),
+			);
+		}
+		return rounds;
+	}
+	private withNextEmployee(day: DayWithDetails) {
+		const busy = new Set(
+			day.sessions.filter((session) => session.status === "IN_PROGRESS").map((session) => session.employeeId),
+		);
+		return {
+			...day,
+			nextEmployeeId: selectNextEmployee(
+				day.roster,
+				day.nextPosition,
+				busy,
+				this.roundsByEmployee(day.roster, day.sessions),
+			)?.employeeId ?? null,
+		};
 	}
 }
