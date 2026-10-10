@@ -38,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		})();
 		return () => { active = false; };
 	}, []);
+	useEffect(() => {
+		function unauthenticated() {
+			setUser(null);
+			setStatus("unauthenticated");
+		}
+		window.addEventListener("auth:unauthorized", unauthenticated);
+		return () => window.removeEventListener("auth:unauthorized", unauthenticated);
+	}, []);
 
 	const login = useCallback(async (input: LoginInput) => {
 		const value = await authApi.login(input);

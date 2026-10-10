@@ -20,18 +20,31 @@ function withAuth(init: RequestInit = {}): RequestInit {
 	return { ...init, credentials: "include", headers };
 }
 
+function notifyUnauthorized(): void {
+	if (typeof window !== "undefined") window.dispatchEvent(new Event("auth:unauthorized"));
+}
+
 export async function authFetch(
 	input: RequestInfo | URL,
 	init: RequestInit = {},
 	retry = true,
 ): Promise<Response> {
 	const response = await fetch(input, withAuth(init));
-	if (response.status !== 401 || !retry || String(input).includes("/api/auth/")) {
+	if (response.status !== 401 || String(input).includes("/api/auth/")) {
+		return response;
+	}
+	if (!retry) {
+		notifyUnauthorized();
 		return response;
 	}
 	const refreshed = await fetch("/api/auth/refresh", withAuth({ method: "POST" }));
-	if (!refreshed.ok) return response;
-	return fetch(input, withAuth(init));
+	if (!refreshed.ok) {
+		notifyUnauthorized();
+		return response;
+	}
+	const retried = await fetch(input, withAuth(init));
+	if (retried.status === 401) notifyUnauthorized();
+	return retried;
 }
 
 async function json<T>(response: Response): Promise<T> {

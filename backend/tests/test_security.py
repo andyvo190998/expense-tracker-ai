@@ -46,7 +46,7 @@ def test_access_token_round_trips_required_claims():
     assert claims.role is UserRole.MERCHANT
     assert claims.token_type == "access"
     assert claims.issued_at == NOW
-    assert claims.expires_at == NOW + timedelta(minutes=15)
+    assert claims.expires_at == NOW + timedelta(days=30)
 
 
 @pytest.mark.parametrize(
@@ -76,7 +76,7 @@ def test_access_token_rejects_wrong_security_claim(claim, value):
 def test_access_token_rejects_expired_token():
     token = create_access_token(USER_ID, UserRole.MERCHANT, now=NOW)
     with pytest.raises(ValueError, match="Invalid access token"):
-        decode_access_token(token, now=NOW + timedelta(minutes=16))
+        decode_access_token(token, now=NOW + timedelta(days=30, seconds=1))
 
 
 def test_refresh_hash_is_deterministic_without_storing_raw_token():

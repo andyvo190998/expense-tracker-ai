@@ -30,3 +30,13 @@ it("settles unauthenticated when bootstrap has no user", async () => {
 	render(<AuthProvider><Probe /></AuthProvider>);
 	expect(await screen.findByText("unauthenticated:none")).toBeInTheDocument();
 });
+
+it("becomes unauthenticated after an unauthorized API response", async () => {
+	me.mockResolvedValue({
+		id: "1", email: "user@example.com", name: "User", role: "merchant", is_active: true,
+	});
+	render(<AuthProvider><Probe /></AuthProvider>);
+	expect(await screen.findByText("authenticated:merchant")).toBeInTheDocument();
+	window.dispatchEvent(new Event("auth:unauthorized"));
+	expect(await screen.findByText("unauthenticated:none")).toBeInTheDocument();
+});

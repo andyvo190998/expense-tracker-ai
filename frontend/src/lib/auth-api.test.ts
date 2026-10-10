@@ -35,6 +35,8 @@ describe("authFetch", () => {
 	});
 
 	it("does not loop when refresh fails", async () => {
+		const unauthorized = vi.fn();
+		window.addEventListener("auth:unauthorized", unauthorized);
 		const fetchMock = vi
 			.fn()
 			.mockResolvedValueOnce(new Response(null, { status: 401 }))
@@ -43,5 +45,22 @@ describe("authFetch", () => {
 
 		expect((await authFetch("/api/expenses")).status).toBe(401);
 		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(unauthorized).toHaveBeenCalledOnce();
+		window.removeEventListener("auth:unauthorized", unauthorized);
+	});
+
+	it("marks the UI unauthenticated when a retried request is still unauthorized", async () => {
+		const unauthorized = vi.fn();
+		window.addEventListener("auth:unauthorized", unauthorized);
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(null, { status: 401 }))
+			.mockResolvedValueOnce(new Response(null, { status: 200 }))
+			.mockResolvedValueOnce(new Response(null, { status: 401 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		expect((await authFetch("/api/expenses")).status).toBe(401);
+		expect(unauthorized).toHaveBeenCalledOnce();
+		window.removeEventListener("auth:unauthorized", unauthorized);
 	});
 });

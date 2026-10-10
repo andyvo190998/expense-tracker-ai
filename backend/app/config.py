@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_issuer: str = "expense-tracker-api"
     jwt_audience: str = "expense-tracker-web"
-    access_token_minutes: int = Field(default=15, ge=1, le=60)
+    access_token_minutes: int = Field(default=30 * 24 * 60, ge=1, le=90 * 24 * 60)
     refresh_token_days: int = Field(default=30, ge=1, le=90)
     access_cookie_name: str = "access_token"
     refresh_cookie_name: str = "refresh_token"
