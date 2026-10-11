@@ -60,11 +60,17 @@ export default function ChiaLuotPage() {
 		enabled: Boolean(day),
 	});
 	const summary = summaryQuery.data ?? null;
-	const servicesSession = day?.sessions.find((session) => session.id === servicesSessionId) ?? null;
+	const servicesSession =
+		day?.sessions.find((session) => session.id === servicesSessionId) ?? null;
 	const mutation = useMutation({
 		mutationFn: ({ path, init }: { path: string; init: RequestInit }) =>
 			api<unknown>(path, init),
-		onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+		onSuccess: (_result, { path }) => {
+			if (path.endsWith("/close")) {
+				queryClient.setQueryData([...queryKey, "current-day"], null);
+			}
+			return queryClient.invalidateQueries({ queryKey });
+		},
 		onError: (error) => toast.error(error instanceof Error ? error.message : "Request failed"),
 	});
 
@@ -86,9 +92,10 @@ export default function ChiaLuotPage() {
 		[summary],
 	);
 	const minimumRounds = useMemo(() => {
-		const eligible = day?.roster.filter(
-			(entry) => entry.isAvailable && !activeByEmployee.has(entry.employeeId),
-		) ?? [];
+		const eligible =
+			day?.roster.filter(
+				(entry) => entry.isAvailable && !activeByEmployee.has(entry.employeeId),
+			) ?? [];
 		return eligible.length
 			? Math.min(...eligible.map((entry) => totals.get(entry.employeeId)?.roundsEarned ?? 0))
 			: undefined;
@@ -186,13 +193,17 @@ export default function ChiaLuotPage() {
 	}
 	function complete(session: Session) {
 		setPaymentSession(session);
-		setServices(session.payments.length ? session.payments.map((service) => ({
-			id: service.id,
-			serviceName: service.serviceName,
-			amount: "",
-			currency: "EUR",
-			method: "CASH",
-		})) : [emptyService()]);
+		setServices(
+			session.payments.length
+				? session.payments.map((service) => ({
+						id: service.id,
+						serviceName: service.serviceName,
+						amount: "",
+						currency: "EUR",
+						method: "CASH",
+					}))
+				: [emptyService()],
+		);
 	}
 	async function addActiveService() {
 		if (!servicesSessionId) return;
@@ -295,7 +306,10 @@ export default function ChiaLuotPage() {
 							<EmployeeCard
 								key={entry.employeeId}
 								active={activeByEmployee.get(entry.employeeId)}
-								canSetNext={(totals.get(entry.employeeId)?.roundsEarned ?? 0) === minimumRounds}
+								canSetNext={
+									(totals.get(entry.employeeId)?.roundsEarned ?? 0) ===
+									minimumRounds
+								}
 								entry={entry}
 								index={index}
 								isNext={entry.employeeId === day.nextEmployeeId}
@@ -363,7 +377,9 @@ export default function ChiaLuotPage() {
 					onAdd={() => void addActiveService()}
 					onDelete={(serviceId) => void deleteActiveService(serviceId)}
 					onOpenChange={(open) => !open && setServicesSessionId(null)}
-					onUpdate={(serviceId, serviceName) => void updateActiveService(serviceId, serviceName)}
+					onUpdate={(serviceId, serviceName) =>
+						void updateActiveService(serviceId, serviceName)
+					}
 					open
 					session={servicesSession}
 				/>
