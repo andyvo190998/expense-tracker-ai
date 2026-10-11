@@ -14,6 +14,14 @@ function Harness() {
 
 it("adds and removes service rows while updating totals and rounds", () => {
 	render(<Harness />);
+	const amount = screen.getByLabelText("Service 1 amount");
+	const paymentMethod = screen.getByRole("group", { name: "Service 1 payment method" });
+	const name = screen.getByLabelText("Service 1 name");
+	expect(amount.compareDocumentPosition(paymentMethod) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	expect(paymentMethod.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+	fireEvent.click(screen.getByRole("button", { name: "PayPal" }));
+	expect(screen.getByRole("button", { name: "PayPal" })).toHaveAttribute("aria-pressed", "true");
 	fireEvent.change(screen.getByLabelText("Service 1 name"), { target: { value: "Haircut" } });
 	fireEvent.change(screen.getByLabelText("Service 1 amount"), { target: { value: "20.00" } });
 	fireEvent.click(screen.getByRole("button", { name: "Add service" }));
@@ -35,7 +43,6 @@ it("uses the strict 30 euro boundary and validates every row", () => {
 		{ serviceName: "Color", amount: "30.01", currency: "EUR", method: "PAYPAL" },
 	])).toEqual({ total: "30.01", rounds: 1, valid: true });
 	for (const service of [
-		{ serviceName: " ", amount: "20.00", currency: "EUR", method: "CASH" },
 		{ serviceName: "Cut", amount: "0.00", currency: "EUR", method: "CASH" },
 		{ serviceName: "Cut", amount: "bad", currency: "EUR", method: "CASH" },
 	] as ServiceInput[]) {

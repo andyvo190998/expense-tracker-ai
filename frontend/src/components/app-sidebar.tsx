@@ -31,17 +31,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { t } = useTranslation();
 	const { user } = useAuth();
 	const navGroups = [
-		...(user?.role === "merchant" ? [{
-			label: t("nav.dashboards"),
-			items: [
-				{ title: t("nav.dashboard1"), url: "/dashboard", icon: LayoutDashboard },
-				{ title: t("nav.dashboard2"), url: "/chi-tieu", icon: LayoutPanelLeft },
-			],
-		}] : []),
-		...(user?.role === "admin" ? [{
-			label: "Administration",
-			items: [{ title: "Users", url: "/admin/users", icon: Users }],
-		}] : []),
+		...(user?.role === "merchant"
+			? [
+					{
+						label: t("nav.dashboards"),
+						items: [
+							{
+								title: t("nav.dashboard1"),
+								url: "/dashboard",
+								icon: LayoutDashboard,
+							},
+							{ title: t("nav.dashboard2"), url: "/chi-tieu", icon: LayoutPanelLeft },
+						],
+					},
+				]
+			: []),
+		...(user?.role === "admin"
+			? [
+					{
+						label: "Administration",
+						items: [{ title: "Users", url: "/admin/users", icon: Users }],
+					},
+				]
+			: []),
 		{
 			label: t("nav.apps"),
 			items: [

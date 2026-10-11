@@ -3,13 +3,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import type { PaymentMethod } from "../workforce";
 
 export type ServiceInput = {
@@ -66,19 +59,7 @@ export function ServiceEditor({
 	return (
 		<div className="grid gap-4">
 			{services.map((service, index) => (
-				<div className={`grid gap-2 ${lockNames ? "sm:grid-cols-[1fr_8rem_13rem]" : "sm:grid-cols-[1fr_8rem_8rem_auto]"}`} key={service.id ?? index}>
-					{lockNames ? (
-						<div className="flex items-center rounded-md border bg-muted/40 px-3 text-sm">
-							{service.serviceName || `Service ${index + 1}`}
-						</div>
-					) : (
-						<Input
-							aria-label={`Service ${index + 1} name`}
-							placeholder="Service name (optional)"
-							value={service.serviceName}
-							onChange={(event) => update(index, { serviceName: event.target.value })}
-						/>
-					)}
+				<div className={`grid gap-2 ${lockNames ? "sm:grid-cols-[8rem_13rem_1fr]" : ""}`} key={service.id ?? index}>
 					<Input
 						aria-label={`Service ${index + 1} amount`}
 						min="0.01"
@@ -88,44 +69,43 @@ export function ServiceEditor({
 						value={service.amount}
 						onChange={(event) => update(index, { amount: event.target.value })}
 					/>
+					<div className="grid grid-cols-2 gap-2" aria-label={`Service ${index + 1} payment method`} role="group">
+						{(["CASH", "PAYPAL"] as const).map((method) => (
+							<Button
+								aria-pressed={service.method === method}
+								key={method}
+								onClick={() => update(index, { method })}
+								type="button"
+								variant={service.method === method ? "default" : "outline"}
+							>
+								{method === "CASH" ? "Cash" : "PayPal"}
+							</Button>
+						))}
+					</div>
 					{lockNames ? (
-						<div className="grid grid-cols-2 gap-2" aria-label={`Service ${index + 1} payment method`} role="group">
-							{(["CASH", "PAYPAL"] as const).map((method) => (
-								<Button
-									aria-pressed={service.method === method}
-									key={method}
-									onClick={() => update(index, { method })}
-									type="button"
-									variant={service.method === method ? "default" : "outline"}
-								>
-									{method === "CASH" ? "Cash" : "PayPal"}
-								</Button>
-							))}
+						<div className="flex items-center rounded-md border bg-muted/40 px-3 text-sm">
+							{service.serviceName || `Service ${index + 1}`}
 						</div>
 					) : (
-						<Select
-							value={service.method}
-							onValueChange={(method: PaymentMethod) => update(index, { method })}
-						>
-							<SelectTrigger aria-label={`Service ${index + 1} payment method`} className="w-full">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="CASH">Cash</SelectItem>
-								<SelectItem value="PAYPAL">PayPal</SelectItem>
-							</SelectContent>
-						</Select>
+						<div className="flex gap-2">
+							<Input
+								aria-label={`Service ${index + 1} name`}
+								placeholder="Service name (optional)"
+								value={service.serviceName}
+								onChange={(event) => update(index, { serviceName: event.target.value })}
+							/>
+							<Button
+								aria-label={`Remove service ${index + 1}`}
+								disabled={services.length === 1}
+								onClick={() => onChange(services.filter((_, position) => position !== index))}
+								size="icon"
+								type="button"
+								variant="ghost"
+							>
+								<Trash2 />
+							</Button>
+						</div>
 					)}
-					{!lockNames ? <Button
-						aria-label={`Remove service ${index + 1}`}
-						disabled={services.length === 1}
-						onClick={() => onChange(services.filter((_, position) => position !== index))}
-						size="icon"
-						type="button"
-						variant="ghost"
-					>
-						<Trash2 />
-					</Button> : null}
 				</div>
 			))}
 			<div className="flex flex-wrap items-center justify-between gap-3">
