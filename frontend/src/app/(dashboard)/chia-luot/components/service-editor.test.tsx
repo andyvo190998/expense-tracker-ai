@@ -39,7 +39,10 @@ it("adds and removes service rows while updating totals and rounds", () => {
 	expect(screen.getByText("0.5 rounds")).toBeInTheDocument();
 });
 
-it("counts 30 euros as a full round and cheaper services as half rounds", () => {
+it("counts skipped and 30-euro services as full rounds and cheaper services as half rounds", () => {
+	expect(
+		serviceTotals([{ serviceName: "Skipped", amount: "0.00", currency: "EUR", method: "CASH" }]),
+	).toEqual({ total: "0.00", rounds: 1, valid: true });
 	expect(
 		serviceTotals([{ serviceName: "Cut", amount: "30.00", currency: "EUR", method: "CASH" }]),
 	).toEqual({ total: "30.00", rounds: 1, valid: true });
@@ -56,7 +59,6 @@ it("counts 30 euros as a full round and cheaper services as half rounds", () => 
 		]),
 	).toEqual({ total: "60.00", rounds: 1.5, valid: true });
 	for (const service of [
-		{ serviceName: "Cut", amount: "0.00", currency: "EUR", method: "CASH" },
 		{ serviceName: "Cut", amount: "bad", currency: "EUR", method: "CASH" },
 	] as ServiceInput[]) {
 		expect(serviceTotals([service]).valid).toBe(false);

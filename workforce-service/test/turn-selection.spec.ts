@@ -66,7 +66,8 @@ describe("selectNextEmployee", () => {
 		).toMatchObject({ employeeId: "three" });
 	});
 
-	it("counts services from 30 euros as full rounds and cheaper services as half rounds", () => {
+	it("counts skipped and 30-euro services as full rounds and cheaper services as half rounds", () => {
+		expect(roundsForServices([{ amount: "0.00", currency: "EUR" }])).toBe(1);
 		expect(roundsForServices([{ amount: "29.99", currency: "EUR" }])).toBe(0.5);
 		expect(roundsForServices([{ amount: "30.00", currency: "EUR" }])).toBe(1);
 		expect(

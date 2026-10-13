@@ -24,7 +24,7 @@ export class CreateEmployeeDto {
 export class ServiceInputDto {
 	@IsOptional() @IsUUID() id?: string;
 	@IsString() @MaxLength(100) serviceName = "";
-	@Matches(/^(?!0+(?:\.0{1,2})?$)\d{1,10}(?:\.\d{1,2})?$/) amount!: string;
+	@Matches(/^\d{1,10}(?:\.\d{1,2})?$/) amount!: string;
 	@IsOptional() @Equals("EUR") currency = "EUR";
 	@IsEnum(PaymentMethod) method!: PaymentMethod;
 }

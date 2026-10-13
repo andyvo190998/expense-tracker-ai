@@ -24,7 +24,7 @@ function amountInCents(amount: string) {
 	if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(amount)) return null;
 	const [euros, fraction = ""] = amount.split(".");
 	const cents = Number(euros) * 100 + Number(fraction.padEnd(2, "0"));
-	return cents > 0 ? cents : null;
+	return cents;
 }
 
 export function serviceTotals(services: ServiceInput[]) {
@@ -36,7 +36,7 @@ export function serviceTotals(services: ServiceInput[]) {
 		if (amount === null || service.currency !== "EUR") valid = false;
 		if (amount !== null) {
 			cents += amount;
-			rounds += amount >= 3000 ? 1 : 0.5;
+			rounds += amount === 0 || amount >= 3000 ? 1 : 0.5;
 		}
 	}
 	return {
@@ -73,7 +73,7 @@ export function ServiceEditor({
 				>
 					<Input
 						aria-label={`Service ${index + 1} amount`}
-						min="0.01"
+						min="0"
 						placeholder="0.00"
 						step="0.01"
 						type="number"
@@ -145,7 +145,7 @@ export function ServiceEditor({
 				</div>
 			</div>
 			<p className="text-xs text-muted-foreground">
-				Below €30.00 = 0.5 round; €30.00 or more = 1 round.
+				€0.00 (skipped) = 1 round; below €30.00 = 0.5 round; €30.00 or more = 1 round.
 			</p>
 		</div>
 	);

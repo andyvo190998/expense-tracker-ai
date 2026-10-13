@@ -2,7 +2,7 @@
 
 ## Goal
 
-Allow one customer visit to contain multiple separately priced and paid services. Each service priced at EUR 30.00 or more earns one employee round. Each positive service below EUR 30.00 earns half a round, so two such services earn one round regardless of their combined price. Rotation must favor employees with fewer earned rounds while retaining the configured roster order as the tie-breaker.
+Allow one customer visit to contain multiple separately priced and paid services. A EUR 0.00 service records a skipped turn and earns one employee round. Each service priced at EUR 30.00 or more also earns one round. Each positive service below EUR 30.00 earns half a round, so two such services earn one round regardless of their combined price. Rotation must favor employees with fewer earned rounds while retaining the configured roster order as the tie-breaker.
 
 Examples:
 
@@ -20,7 +20,7 @@ This feature applies to the workforce service and the `chia-luot` dashboard. It 
 Each payment/service row contains:
 
 - `serviceName`: required trimmed text, maximum 100 characters;
-- `amount`: positive `Decimal(12,2)`;
+- `amount`: non-negative `Decimal(12,2)`;
 - `currency`: `EUR` for this feature;
 - `method`: `CASH` or `PAYPAL`.
 
@@ -31,7 +31,7 @@ The migration backfills every existing payment with `serviceName = "Service"`. I
 No persisted `roundCount` is added. The workforce service derives it with deterministic decimal comparisons:
 
 ```text
-roundCount = sum(1 when an EUR service amount >= 30.00, otherwise 0.5)
+roundCount = sum(1 when an EUR service amount is 0.00 or >= 30.00, otherwise 0.5)
 ```
 
 The threshold is an application constant for the current EUR-only product. Merchant-specific thresholds and non-EUR conversion are outside this change.
@@ -70,7 +70,7 @@ The service-line input is:
 }
 ```
 
-`currency` may continue to default to `EUR` at the DTO boundary. Amounts retain the existing decimal-string validation and must be positive.
+`currency` may continue to default to `EUR` at the DTO boundary. Amounts retain decimal-string validation and must be non-negative.
 
 Completing an in-progress session accepts:
 
@@ -104,7 +104,8 @@ All endpoints remain authenticated, CSRF-protected where applicable, merchant-sc
 ## Validation and Errors
 
 - A paid/completed session must have at least one service.
-- Every service needs a non-empty name, valid positive decimal amount, EUR currency, and supported method.
+- Every service needs a non-empty name, valid non-negative decimal amount, EUR currency, and supported method.
+- EUR 0.00 represents a skipped turn and earns one round.
 - EUR 29.99 earns half a round; EUR 30.00 earns one.
 - Two services below EUR 30.00 earn one round regardless of their combined price.
 - A failure writing any service rolls back the entire completion or update.
@@ -123,7 +124,7 @@ The current single amount and method dialog becomes a service editor. It starts 
 - remove action when more than one row exists;
 - `Add service` action.
 
-The form derives and displays the combined total and preview round count. It includes the concise rule `Below EUR 30.00 = 0.5 round; EUR 30.00 or more = 1 round`. Completion is disabled until every row is valid.
+The form derives and displays the combined total and preview round count. It includes the concise rule `EUR 0.00 (skipped) = 1 round; below EUR 30.00 = 0.5 round; EUR 30.00 or more = 1 round`. Completion is disabled until every row is valid.
 
 ### Employee Cards
 
@@ -150,7 +151,7 @@ Existing records remain visible with one generic service line and unchanged reve
 Backend tests cover:
 
 - migration preservation of existing payment data;
-- boundary calculations for EUR 29.99 and EUR 30.00;
+- boundary calculations for EUR 0.00, EUR 29.99, and EUR 30.00;
 - pairing two half-round services regardless of their combined price;
 - mixed and multiple qualifying services;
 - fractional-round eligibility;

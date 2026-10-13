@@ -16,6 +16,14 @@ describe("PaymentDto", () => {
 		expect(dto.services.map((service) => service.currency)).toEqual(["EUR", "EUR"]);
 	});
 
+	it("accepts a zero amount as a skipped round", async () => {
+		const dto = plainToInstance(PaymentDto, {
+			services: [{ serviceName: "Skipped", amount: "0.00", method: "CASH" }],
+		});
+
+		expect(await validate(dto)).toEqual([]);
+	});
+
 	it.each([
 		{ services: [] },
 		{ services: [{ serviceName: " ", amount: "30.00", method: "CASH" }] },

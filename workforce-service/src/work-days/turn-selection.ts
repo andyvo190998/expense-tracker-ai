@@ -7,7 +7,8 @@ export function roundsForServices(
 ) {
 	return services.reduce((rounds, service) => {
 		if (service.currency !== "EUR" || service.amount === null) return rounds;
-		return rounds + (new Prisma.Decimal(service.amount).greaterThanOrEqualTo(30) ? 1 : 0.5);
+		const amount = new Prisma.Decimal(service.amount);
+		return rounds + (amount.isZero() || amount.greaterThanOrEqualTo(30) ? 1 : 0.5);
 	}, 0);
 }
 
