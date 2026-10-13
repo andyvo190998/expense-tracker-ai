@@ -152,6 +152,7 @@ Preserve a readable merchant name. Merchant aliases/rules may later be stored in
 - Automatic assignment favors available, idle employees with the fewest rounds for the current workday.
 - Ties follow the fixed roster order from the current rotation cursor.
 - Fractional round totals participate in automatic assignment using the same lowest-total rule.
+- The open-workday page shows a round overview in setup order and highlights up to three employees furthest below the current highest round total. Setup order breaks ties at the three-employee cutoff.
 
 ## Acceptance Examples
 

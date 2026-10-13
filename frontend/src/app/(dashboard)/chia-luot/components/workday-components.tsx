@@ -133,7 +133,9 @@ export function ActiveServicesDialog({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Services for {session.customerName || "customer"}</DialogTitle>
-					<DialogDescription>Add, rename, or remove services while work is in progress.</DialogDescription>
+					<DialogDescription>
+						Add, rename, or remove services while work is in progress.
+					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-2">
 					{session.payments.map((service, index) => (
@@ -158,7 +160,9 @@ export function ActiveServicesDialog({
 					))}
 				</div>
 				<DialogFooter>
-					<Button onClick={onAdd} type="button" variant="outline"><Plus /> Add service</Button>
+					<Button onClick={onAdd} type="button" variant="outline">
+						<Plus /> Add service
+					</Button>
 					<Button onClick={() => onOpenChange(false)}>Done</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -193,6 +197,61 @@ export function PageHeader({
 				</Button>
 			)}
 		</div>
+	);
+}
+
+export function RoundOverview({
+	roster,
+	totals,
+}: {
+	roster: WorkDay["roster"];
+	totals: ReadonlyMap<string, EmployeeSummary>;
+}) {
+	const rounds = roster.map((entry) => totals.get(entry.employeeId)?.roundsEarned ?? 0);
+	const highestRounds = Math.max(...rounds);
+	const highlighted = new Set(
+		roster
+			.map((entry, index) => ({ employeeId: entry.employeeId, index, rounds: rounds[index] }))
+			.filter((item) => item.rounds < highestRounds)
+			.sort((a, b) => a.rounds - b.rounds || a.index - b.index)
+			.slice(0, 3)
+			.map((item) => item.employeeId),
+	);
+
+	return (
+		<section
+			aria-labelledby="round-overview-title"
+			className="rounded-xl border bg-card p-4"
+			role="region"
+		>
+			<h2 className="mb-3 font-semibold" id="round-overview-title">
+				Round overview
+			</h2>
+			<ol className="flex flex-wrap gap-2">
+				{roster.map((entry, index) => {
+					const roundCount = rounds[index];
+					const needsRound = highlighted.has(entry.employeeId);
+					return (
+						<li
+							className={
+								needsRound
+									? "flex min-w-32 items-center gap-2 rounded-lg border border-amber-500 bg-amber-50 px-3 py-2 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100"
+									: "flex min-w-32 items-center gap-2 rounded-lg border px-3 py-2"
+							}
+							key={entry.employeeId}
+						>
+							<span>{entry.employee.name}</span>
+							<strong className="ml-auto tabular-nums">
+								{roundCount} {roundCount === 1 ? "round" : "rounds"}
+							</strong>
+							{needsRound ? (
+								<Badge className="bg-amber-600 text-white">Needs round</Badge>
+							) : null}
+						</li>
+					);
+				})}
+			</ol>
+		</section>
 	);
 }
 
@@ -235,7 +294,10 @@ export function EmployeesCard({
 					</div>
 					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
 						{employees.map((employee, index) => (
-							<div key={employee.id} className="flex items-center gap-2 rounded-lg border p-4">
+							<div
+								key={employee.id}
+								className="flex items-center gap-2 rounded-lg border p-4"
+							>
 								<span className="text-muted-foreground">{index + 1}</span>
 								{editing?.id === employee.id ? (
 									<>
@@ -302,7 +364,9 @@ export function EmployeesCard({
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeleting(null)}>Cancel</Button>
+						<Button variant="outline" onClick={() => setDeleting(null)}>
+							Cancel
+						</Button>
 						<Button
 							variant="destructive"
 							onClick={() => {
@@ -382,7 +446,9 @@ export function EmployeeCard({
 						<Switch
 							aria-label={`Set ${entry.employee.name} as next turn`}
 							checked={isNext}
-							disabled={isNext || !canSetNext || !entry.isAvailable || Boolean(active)}
+							disabled={
+								isNext || !canSetNext || !entry.isAvailable || Boolean(active)
+							}
 							onCheckedChange={(checked) => {
 								if (checked) onSetNext();
 							}}
@@ -395,8 +461,15 @@ export function EmployeeCard({
 							<Clock3 className="size-5" />
 							{elapsed(active.startedAt)}
 						</div>
-						<Button className="justify-start" variant="ghost" onClick={() => onViewServices(active)}>
-							Services: <strong className="underline underline-offset-4">{active.payments.length}</strong>
+						<Button
+							className="justify-start"
+							variant="ghost"
+							onClick={() => onViewServices(active)}
+						>
+							Services:{" "}
+							<strong className="underline underline-offset-4">
+								{active.payments.length}
+							</strong>
 						</Button>
 						<div className="grid grid-cols-2 gap-2">
 							<Button variant="outline" onClick={() => onCancel(active)}>

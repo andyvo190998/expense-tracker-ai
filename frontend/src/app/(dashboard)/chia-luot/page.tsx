@@ -16,6 +16,7 @@ import {
 	PageHeader,
 	PaymentDialog,
 	QuickAssignDialog,
+	RoundOverview,
 	StartWorkDayDialog,
 	TodayTotal,
 } from "./components/workday-components";
@@ -301,6 +302,7 @@ export default function ChiaLuotPage() {
 				/>
 			) : (
 				<>
+					<RoundOverview roster={day.roster} totals={totals} />
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 						{day.roster.map((entry, index) => (
 							<EmployeeCard
