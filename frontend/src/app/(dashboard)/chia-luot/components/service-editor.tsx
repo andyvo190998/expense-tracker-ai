@@ -36,10 +36,14 @@ export function serviceTotals(services: ServiceInput[]) {
 		if (amount === null || service.currency !== "EUR") valid = false;
 		if (amount !== null) {
 			cents += amount;
-			if (amount > 3000) rounds++;
+			rounds += amount >= 3000 ? 1 : 0.5;
 		}
 	}
-	return { total: `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`, rounds, valid };
+	return {
+		total: `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`,
+		rounds,
+		valid,
+	};
 }
 
 export function ServiceEditor({
@@ -53,13 +57,20 @@ export function ServiceEditor({
 }) {
 	const totals = serviceTotals(services);
 	function update(index: number, patch: Partial<ServiceInput>) {
-		onChange(services.map((service, position) => position === index ? { ...service, ...patch } : service));
+		onChange(
+			services.map((service, position) =>
+				position === index ? { ...service, ...patch } : service,
+			),
+		);
 	}
 
 	return (
 		<div className="grid gap-4">
 			{services.map((service, index) => (
-				<div className={`grid gap-2 ${lockNames ? "sm:grid-cols-[8rem_13rem_1fr]" : ""}`} key={service.id ?? index}>
+				<div
+					className={`grid gap-2 ${lockNames ? "sm:grid-cols-[8rem_13rem_1fr]" : ""}`}
+					key={service.id ?? index}
+				>
 					<Input
 						aria-label={`Service ${index + 1} amount`}
 						min="0.01"
@@ -69,7 +80,11 @@ export function ServiceEditor({
 						value={service.amount}
 						onChange={(event) => update(index, { amount: event.target.value })}
 					/>
-					<div className="grid grid-cols-2 gap-2" aria-label={`Service ${index + 1} payment method`} role="group">
+					<div
+						className="grid grid-cols-2 gap-2"
+						aria-label={`Service ${index + 1} payment method`}
+						role="group"
+					>
 						{(["CASH", "PAYPAL"] as const).map((method) => (
 							<Button
 								aria-pressed={service.method === method}
@@ -92,12 +107,16 @@ export function ServiceEditor({
 								aria-label={`Service ${index + 1} name`}
 								placeholder="Service name (optional)"
 								value={service.serviceName}
-								onChange={(event) => update(index, { serviceName: event.target.value })}
+								onChange={(event) =>
+									update(index, { serviceName: event.target.value })
+								}
 							/>
 							<Button
 								aria-label={`Remove service ${index + 1}`}
 								disabled={services.length === 1}
-								onClick={() => onChange(services.filter((_, position) => position !== index))}
+								onClick={() =>
+									onChange(services.filter((_, position) => position !== index))
+								}
 								size="icon"
 								type="button"
 								variant="ghost"
@@ -109,15 +128,25 @@ export function ServiceEditor({
 				</div>
 			))}
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<Button onClick={() => onChange([...services, emptyService()])} type="button" variant="outline">
+				<Button
+					onClick={() => onChange([...services, emptyService()])}
+					type="button"
+					variant="outline"
+				>
 					<Plus /> Add service
 				</Button>
 				<div className="text-right text-sm">
-					<div>Total: <span className="font-medium">€{totals.total}</span></div>
-					<div>{totals.rounds} {totals.rounds === 1 ? "round" : "rounds"}</div>
+					<div>
+						Total: <span className="font-medium">€{totals.total}</span>
+					</div>
+					<div>
+						{totals.rounds} {totals.rounds === 1 ? "round" : "rounds"}
+					</div>
 				</div>
 			</div>
-			<p className="text-xs text-muted-foreground">€30.00 or less = 0 rounds; over €30.00 = 1 round.</p>
+			<p className="text-xs text-muted-foreground">
+				Below €30.00 = 0.5 round; €30.00 or more = 1 round.
+			</p>
 		</div>
 	);
 }

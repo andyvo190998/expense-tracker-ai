@@ -147,11 +147,11 @@ Preserve a readable merchant name. Merchant aliases/rules may later be stored in
 ## Workforce Rotation
 
 - One customer visit may contain multiple services, each with its own EUR price and payment method.
-- Each service priced strictly above EUR 30.00 earns one employee round; EUR 30.00 or less earns zero rounds.
+- Each service priced at EUR 30.00 or more earns one employee round; a positive service below EUR 30.00 earns half a round. Two half-round services therefore earn one round regardless of their combined price.
 - Customer count, earned rounds, and revenue are separate metrics.
 - Automatic assignment favors available, idle employees with the fewest rounds for the current workday.
 - Ties follow the fixed roster order from the current rotation cursor.
-- An employee who completes a zero-round customer remains eligible for the next assignment.
+- Fractional round totals participate in automatic assignment using the same lowest-total rule.
 
 ## Acceptance Examples
 

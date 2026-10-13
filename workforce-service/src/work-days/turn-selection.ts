@@ -5,10 +5,10 @@ export type RosterEntry = { employeeId: string; position: number; isAvailable: b
 export function roundsForServices(
 	services: { amount: Prisma.Decimal | string | null; currency: string }[],
 ) {
-	return services.filter(
-		(service) =>
-			service.currency === "EUR" && service.amount !== null && new Prisma.Decimal(service.amount).greaterThan(30),
-	).length;
+	return services.reduce((rounds, service) => {
+		if (service.currency !== "EUR" || service.amount === null) return rounds;
+		return rounds + (new Prisma.Decimal(service.amount).greaterThanOrEqualTo(30) ? 1 : 0.5);
+	}, 0);
 }
 
 export function selectNextEmployee(

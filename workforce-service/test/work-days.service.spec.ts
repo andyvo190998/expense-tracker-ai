@@ -21,9 +21,15 @@ describe("WorkDaysService", () => {
 			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
 		} as never);
 
-		await (service as WorkDaysService & {
-			setNext: (merchantId: string, dayId: string, employeeId: string) => Promise<unknown>;
-		}).setNext("merchant-id", "day-id", "two");
+		await (
+			service as WorkDaysService & {
+				setNext: (
+					merchantId: string,
+					dayId: string,
+					employeeId: string,
+				) => Promise<unknown>;
+			}
+		).setNext("merchant-id", "day-id", "two");
 
 		expect(transaction.workDay.update).toHaveBeenCalledWith({
 			where: { id: "day-id" },
@@ -41,16 +47,28 @@ describe("WorkDaysService", () => {
 				}),
 				update: jest.fn(),
 			},
-			serviceSession: { findMany: jest.fn().mockResolvedValue([{ employeeId: "one", status: "IN_PROGRESS", payments: [] }]) },
+			serviceSession: {
+				findMany: jest
+					.fn()
+					.mockResolvedValue([
+						{ employeeId: "one", status: "IN_PROGRESS", payments: [] },
+					]),
+			},
 		};
 		const service = new WorkDaysService({
 			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
 		} as never);
 
 		await expect(
-			(service as WorkDaysService & {
-				setNext: (merchantId: string, dayId: string, employeeId: string) => Promise<unknown>;
-			}).setNext("merchant-id", "day-id", "one"),
+			(
+				service as WorkDaysService & {
+					setNext: (
+						merchantId: string,
+						dayId: string,
+						employeeId: string,
+					) => Promise<unknown>;
+				}
+			).setNext("merchant-id", "day-id", "one"),
 		).rejects.toMatchObject({ response: { code: "NO_ELIGIBLE_EMPLOYEE" } });
 	});
 
@@ -69,17 +87,24 @@ describe("WorkDaysService", () => {
 			},
 			serviceSession: {
 				findFirst: jest.fn().mockResolvedValue(null),
-				findMany: jest.fn().mockResolvedValue([{ employeeId: "anna", status: "PAID", payments: [
-					{ amount: new Prisma.Decimal("40.00"), currency: "EUR" },
-				] }]),
+				findMany: jest
+					.fn()
+					.mockResolvedValue([
+						{
+							employeeId: "anna",
+							status: "PAID",
+							payments: [{ amount: new Prisma.Decimal("40.00"), currency: "EUR" }],
+						},
+					]),
 			},
 		};
 		const service = new WorkDaysService({
 			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
 		} as never);
 
-		await expect(service.setNext("merchant-id", "day-id", "anna"))
-			.rejects.toMatchObject({ response: { code: "EMPLOYEE_NOT_MINIMUM_ROUNDS" } });
+		await expect(service.setNext("merchant-id", "day-id", "anna")).rejects.toMatchObject({
+			response: { code: "EMPLOYEE_NOT_MINIMUM_ROUNDS" },
+		});
 		expect(transaction.workDay.update).not.toHaveBeenCalled();
 	});
 
@@ -96,7 +121,9 @@ describe("WorkDaysService", () => {
 				findMany: jest.fn().mockResolvedValue(rows.map((row) => ({ ...row }))),
 				aggregate: jest.fn().mockResolvedValue({ _max: { servedNumber: 3 } }),
 				updateMany: jest.fn(({ where, data }) => {
-					for (const row of rows) if (where.id.in.includes(row.id)) row.servedNumber += data.servedNumber.increment;
+					for (const row of rows)
+						if (where.id.in.includes(row.id))
+							row.servedNumber += data.servedNumber.increment;
 				}),
 				update: jest.fn(({ where, data }) => {
 					const row = rows.find((item) => item.id === where.id);
@@ -191,8 +218,20 @@ describe("WorkDaysService", () => {
 			status: "PAID",
 			payments: {
 				create: [
-					{ merchantId: "merchant-id", serviceName: "Cut", amount: new Prisma.Decimal("20.00"), currency: "EUR", method: "CASH" },
-					{ merchantId: "merchant-id", serviceName: "Color", amount: new Prisma.Decimal("40.00"), currency: "EUR", method: "PAYPAL" },
+					{
+						merchantId: "merchant-id",
+						serviceName: "Cut",
+						amount: new Prisma.Decimal("20.00"),
+						currency: "EUR",
+						method: "CASH",
+					},
+					{
+						merchantId: "merchant-id",
+						serviceName: "Color",
+						amount: new Prisma.Decimal("40.00"),
+						currency: "EUR",
+						method: "PAYPAL",
+					},
 				],
 			},
 		});
@@ -224,7 +263,9 @@ describe("WorkDaysService", () => {
 				employeeId: "employee-id",
 				servedNumber: 4,
 				customerName: "Mai",
-				services: [{ serviceName: "Cut", amount: "30.50", currency: "EUR", method: "CASH" }],
+				services: [
+					{ serviceName: "Cut", amount: "30.50", currency: "EUR", method: "CASH" },
+				],
 			}),
 		).rejects.toMatchObject({ response: { code: "INVALID_SERVED_NUMBER" } });
 	});
@@ -243,10 +284,7 @@ describe("WorkDaysService", () => {
 			$queryRaw: jest.fn(),
 			serviceSession: {
 				aggregate: jest.fn().mockResolvedValue({ _max: { servedNumber: 2 } }),
-				findFirst: jest
-					.fn()
-					.mockResolvedValueOnce(target)
-					.mockResolvedValueOnce(occupied),
+				findFirst: jest.fn().mockResolvedValueOnce(target).mockResolvedValueOnce(occupied),
 				update: jest.fn(({ where, data }) => {
 					if (where.id === target.id) Object.assign(target, data);
 					if (where.id === occupied.id) Object.assign(occupied, data);
@@ -263,7 +301,9 @@ describe("WorkDaysService", () => {
 		await service.updateServedCustomer("merchant-id", target.id, {
 			servedNumber: 2,
 			customerName: "Lan",
-			services: [{ serviceName: "Color", amount: "12.00", currency: "EUR", method: "PAYPAL" }],
+			services: [
+				{ serviceName: "Color", amount: "12.00", currency: "EUR", method: "PAYPAL" },
+			],
 		});
 
 		expect(target).toMatchObject({ servedNumber: 2, customerName: "Lan" });
@@ -314,7 +354,8 @@ describe("WorkDaysService", () => {
 				updateMany: jest.fn(({ where, data }) => {
 					for (const row of remaining) {
 						if (row.servedNumber > where.servedNumber.gt) {
-							row.servedNumber += data.servedNumber.increment ?? -data.servedNumber.decrement;
+							row.servedNumber +=
+								data.servedNumber.increment ?? -data.servedNumber.decrement;
 						}
 					}
 					return { count: 2 };
@@ -327,9 +368,10 @@ describe("WorkDaysService", () => {
 		};
 		const service = new WorkDaysService(db as never);
 
-		await expect(
-			service.deleteServedCustomer("merchant-id", "session-id"),
-		).resolves.toEqual({ status: "deleted", id: "session-id" });
+		await expect(service.deleteServedCustomer("merchant-id", "session-id")).resolves.toEqual({
+			status: "deleted",
+			id: "session-id",
+		});
 		expect(remaining.map((row) => row.servedNumber)).toEqual([1, 2, 3]);
 	});
 
@@ -366,7 +408,13 @@ describe("WorkDaysService", () => {
 
 		await service.pay("merchant-id", "session-id", {
 			services: [
-				{ id: "draft-id", serviceName: "Cut", amount: "20.00", currency: "EUR", method: "CASH" },
+				{
+					id: "draft-id",
+					serviceName: "Cut",
+					amount: "20.00",
+					currency: "EUR",
+					method: "CASH",
+				},
 				{ serviceName: "Color", amount: "40.00", currency: "EUR", method: "PAYPAL" },
 			],
 		});
@@ -376,7 +424,13 @@ describe("WorkDaysService", () => {
 			data: { amount: new Prisma.Decimal("20.00"), currency: "EUR", method: "CASH" },
 		});
 		expect(payments).toEqual([
-			expect.objectContaining({ merchantId: "merchant-id", serviceSessionId: "session-id", serviceName: "Color", amount: new Prisma.Decimal("40.00"), method: "PAYPAL" }),
+			expect.objectContaining({
+				merchantId: "merchant-id",
+				serviceSessionId: "session-id",
+				serviceName: "Color",
+				amount: new Prisma.Decimal("40.00"),
+				method: "PAYPAL",
+			}),
 		]);
 		expect(session.status).toBe("PAID");
 		expect(session.completedAt).toBeInstanceOf(Date);
@@ -399,12 +453,17 @@ describe("WorkDaysService", () => {
 			},
 			serviceSession: {
 				findMany: jest.fn().mockResolvedValue([
-					{ employeeId: "anna", status: "PAID", payments: [
-						{ amount: new Prisma.Decimal("40.00"), currency: "EUR" },
-						{ amount: new Prisma.Decimal("50.00"), currency: "EUR" },
-					] },
+					{
+						employeeId: "anna",
+						status: "PAID",
+						payments: [
+							{ amount: new Prisma.Decimal("40.00"), currency: "EUR" },
+							{ amount: new Prisma.Decimal("50.00"), currency: "EUR" },
+						],
+					},
 				]),
-				aggregate: jest.fn()
+				aggregate: jest
+					.fn()
 					.mockResolvedValueOnce({ _max: { sequenceNumber: 2 } })
 					.mockResolvedValueOnce({ _max: { servedNumber: 0 } }),
 				create,
@@ -418,12 +477,14 @@ describe("WorkDaysService", () => {
 
 		await service.assign("merchant-id", "day-id", {});
 
-		expect(create).toHaveBeenCalledWith(expect.objectContaining({
-			data: expect.objectContaining({ employeeId: "bob" }),
-		}));
+		expect(create).toHaveBeenCalledWith(
+			expect.objectContaining({
+				data: expect.objectContaining({ employeeId: "bob" }),
+			}),
+		);
 	});
 
-	it("returns exact payment totals, customer counts, and qualifying rounds", async () => {
+	it("returns exact payment totals, customer counts, and fractional rounds", async () => {
 		const employee = { id: "employee-id", name: "Anna" };
 		const day = {
 			id: "day-id",
@@ -441,7 +502,9 @@ describe("WorkDaysService", () => {
 				{
 					employeeId: employee.id,
 					status: "PAID",
-					payments: [{ amount: new Prisma.Decimal("30.00"), currency: "EUR", method: "CASH" }],
+					payments: [
+						{ amount: new Prisma.Decimal("30.00"), currency: "EUR", method: "CASH" },
+					],
 				},
 			],
 		};
@@ -454,7 +517,7 @@ describe("WorkDaysService", () => {
 			cashTotal: "50.10",
 			paypalTotal: "40.00",
 			total: "90.10",
-			employees: [{ customersServed: 2, roundsEarned: 1, revenue: "90.10" }],
+			employees: [{ customersServed: 2, roundsEarned: 2.5, revenue: "90.10" }],
 		});
 	});
 
@@ -463,7 +526,9 @@ describe("WorkDaysService", () => {
 		const transaction = {
 			$queryRaw: jest.fn(),
 			serviceSession: {
-				findFirst: jest.fn().mockResolvedValue({ id: "session-id", status: "IN_PROGRESS", payments: [] }),
+				findFirst: jest
+					.fn()
+					.mockResolvedValue({ id: "session-id", status: "IN_PROGRESS", payments: [] }),
 				update,
 			},
 			payment: { createMany: jest.fn().mockRejectedValue(new Error("write failed")) },
@@ -472,9 +537,13 @@ describe("WorkDaysService", () => {
 			$transaction: (callback: (tx: typeof transaction) => unknown) => callback(transaction),
 		} as never);
 
-		await expect(service.pay("merchant-id", "session-id", {
-			services: [{ serviceName: "Cut", amount: "40.00", currency: "EUR", method: "CASH" }],
-		})).rejects.toThrow("write failed");
+		await expect(
+			service.pay("merchant-id", "session-id", {
+				services: [
+					{ serviceName: "Cut", amount: "40.00", currency: "EUR", method: "CASH" },
+				],
+			}),
+		).rejects.toThrow("write failed");
 		expect(update).not.toHaveBeenCalled();
 	});
 });

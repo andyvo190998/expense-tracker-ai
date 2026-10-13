@@ -2,13 +2,14 @@
 
 ## Goal
 
-Allow one customer visit to contain multiple separately priced and paid services. Each service priced strictly above EUR 30.00 earns one employee round. Services priced at EUR 30.00 or less earn no rounds. Rotation must favor employees with fewer earned rounds while retaining the configured roster order as the tie-breaker.
+Allow one customer visit to contain multiple separately priced and paid services. Each service priced at EUR 30.00 or more earns one employee round. Each positive service below EUR 30.00 earns half a round, so two such services earn one round regardless of their combined price. Rotation must favor employees with fewer earned rounds while retaining the configured roster order as the tie-breaker.
 
 Examples:
 
-- EUR 20.00 + EUR 40.00: two services, EUR 60.00 revenue, one customer, one round.
+- EUR 20.00 + EUR 40.00: two services, EUR 60.00 revenue, one customer, one and a half rounds.
 - EUR 40.00 + EUR 50.00: two services, EUR 90.00 revenue, one customer, two rounds.
-- EUR 30.00: one service, EUR 30.00 revenue, one customer, zero rounds.
+- EUR 10.00 + EUR 15.00: two services, EUR 25.00 revenue, one customer, one round.
+- EUR 30.00: one service, EUR 30.00 revenue, one customer, one round.
 
 This feature applies to the workforce service and the `chia-luot` dashboard. It does not change expense tracking or the AI expense agent.
 
@@ -30,7 +31,7 @@ The migration backfills every existing payment with `serviceName = "Service"`. I
 No persisted `roundCount` is added. The workforce service derives it with deterministic decimal comparisons:
 
 ```text
-roundCount = count(service where currency == EUR and amount > 30.00)
+roundCount = sum(1 when an EUR service amount >= 30.00, otherwise 0.5)
 ```
 
 The threshold is an application constant for the current EUR-only product. Merchant-specific thresholds and non-EUR conversion are outside this change.
@@ -50,7 +51,7 @@ When choosing the next employee, the service:
 
 The cursor advances to the roster position after the selected employee. It breaks ties only; it does not override the minimum-round rule.
 
-A completed zero-round visit leaves that employee at the lower total, making them eligible again immediately when not busy. Other busy employees may still be served concurrently. Editing or deleting historical services changes the derived totals and therefore may change the next employee.
+A completed half-round visit raises that employee's total by 0.5. Fractional totals participate in the same lowest-total selection rule. Other busy employees may still be served concurrently. Editing or deleting historical services changes the derived totals and therefore may change the next employee.
 
 Example with roster `Anna -> Bob -> Carla`: after Anna earns two rounds while Bob and Carla have zero, the next qualifying one-round visits are assigned `Bob -> Carla -> Bob -> Carla -> Anna`.
 
@@ -104,7 +105,8 @@ All endpoints remain authenticated, CSRF-protected where applicable, merchant-sc
 
 - A paid/completed session must have at least one service.
 - Every service needs a non-empty name, valid positive decimal amount, EUR currency, and supported method.
-- EUR 30.00 earns zero rounds; EUR 30.01 earns one.
+- EUR 29.99 earns half a round; EUR 30.00 earns one.
+- Two services below EUR 30.00 earn one round regardless of their combined price.
 - A failure writing any service rolls back the entire completion or update.
 - Existing not-found, invalid-session-state, served-number conflict, and merchant-isolation behavior remains unchanged.
 - The frontend displays the structured backend error and must not show a success toast after a failed mutation.
@@ -121,7 +123,7 @@ The current single amount and method dialog becomes a service editor. It starts 
 - remove action when more than one row exists;
 - `Add service` action.
 
-The form derives and displays the combined total and preview round count. It includes the concise rule `EUR 30.00 or less = 0 rounds; over EUR 30.00 = 1 round`. Completion is disabled until every row is valid.
+The form derives and displays the combined total and preview round count. It includes the concise rule `Below EUR 30.00 = 0.5 round; EUR 30.00 or more = 1 round`. Completion is disabled until every row is valid.
 
 ### Employee Cards
 
@@ -148,9 +150,10 @@ Existing records remain visible with one generic service line and unchanged reve
 Backend tests cover:
 
 - migration preservation of existing payment data;
-- boundary calculations for EUR 30.00 and EUR 30.01;
+- boundary calculations for EUR 29.99 and EUR 30.00;
+- pairing two half-round services regardless of their combined price;
 - mixed and multiple qualifying services;
-- zero-round eligibility;
+- fractional-round eligibility;
 - the `Bob -> Carla -> Bob -> Carla -> Anna` fairness sequence;
 - tie-breaking, busy employees, unavailable employees, and manual assignment;
 - atomic multi-service completion and replacement updates;
