@@ -1,8 +1,9 @@
+import json
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -21,13 +22,15 @@ class Settings(BaseSettings):
     csrf_cookie_name: str = "csrf_token"
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict"] = "lax"
-    allowed_origins: list[str] = ["http://localhost:3000"]
+    allowed_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     public_registration: bool = True
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, value: object) -> object:
-        if isinstance(value, str) and not value.lstrip().startswith("["):
+        if isinstance(value, str):
+            if value.lstrip().startswith("["):
+                return json.loads(value)
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 

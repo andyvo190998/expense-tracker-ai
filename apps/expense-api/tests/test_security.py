@@ -88,6 +88,15 @@ def test_refresh_hash_is_deterministic_without_storing_raw_token():
     assert len(digest) == 64
 
 
+def test_allowed_origins_accepts_comma_separated_environment_value(monkeypatch):
+    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:3000,https://app.example.com")
+
+    assert Settings().allowed_origins == [
+        "http://localhost:3000",
+        "https://app.example.com",
+    ]
+
+
 @pytest.mark.parametrize("secret", ["change-me", "too-short"])
 def test_production_rejects_unsafe_signing_secret(monkeypatch, secret):
     monkeypatch.setenv("APP_ENV", "production")
