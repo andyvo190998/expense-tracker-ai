@@ -1,0 +1,25 @@
+{
+  "name": "expense-tracker-ai",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "build": "turbo run build",
+    "contracts:check": "pnpm contracts:generate && git diff --exit-code -- packages/contracts/src/generated",
+    "contracts:generate": "pnpm --filter @expense-tracker/contracts generate",
+    "db:migrate": "turbo run db:migrate",
+    "dev": "docker-compose up -d --wait postgres && docker-compose run --rm workforce-db-init && pnpm db:migrate && turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@ag-ui/mcp-apps-middleware": "0.1.1",
+      "undici@>=8.0.0 <9": "8.11.2"
+    }
+  }
+}

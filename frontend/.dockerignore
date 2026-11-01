@@ -1,9 +1,0 @@
-.env*
-!.env.example
-.git
-.next
-node_modules
-npm-debug.log*
-pnpm-debug.log*
-Dockerfile*
-README.md

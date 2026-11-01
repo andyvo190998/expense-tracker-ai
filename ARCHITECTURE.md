@@ -25,7 +25,7 @@ Expected normalized record:
 
 ```text
 ┌─────────────────────────────┐
-│ Next.js                     │
+│ apps/web: Next.js           │
 │ - dashboard                 │
 │ - expense management        │
 │ - CopilotKit chat UI        │
@@ -34,7 +34,7 @@ Expected normalized record:
         REST   │   AG-UI
                │
 ┌──────────────▼──────────────┐
-│ FastAPI                     │
+│ apps/expense-api: FastAPI   │
 │                             │
 │ REST application services   │
 │ LangGraph/LangChain agent   │
@@ -53,6 +53,11 @@ Expected normalized record:
 └─────────────────────────────┘
 
 External LLM provider is called only by the backend agent layer.
+
+The repository is orchestrated by pnpm workspaces and Turborepo. The separate
+NestJS workforce API lives in `apps/workforce-api`. Both backend OpenAPI schemas
+generate committed types and injectable client factories in
+`packages/contracts`; database models remain private to their owning service.
 ```
 
 ## Technology Choices

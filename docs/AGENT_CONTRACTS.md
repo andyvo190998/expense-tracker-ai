@@ -21,7 +21,7 @@ The agent must always follow these rules:
 
 ## Core Tools
 
-The agent is built by `backend/agent.py:create_expense_agent` using LangChain's
+The agent is built by `apps/expense-api/agent.py:create_expense_agent` using LangChain's
 `create_agent` and `CopilotKitMiddleware`. It exposes create, lookup, update,
 delete, and deterministic analytics tools.
 The centralized prompt receives the backend's current Europe/Berlin date at
@@ -34,7 +34,7 @@ tool schemas never accept `user_id`. Durable conversation state is deferred.
 ### `add_expense`
 Purpose: create one expense.
 
-Implemented in `backend/tools/expenses.py` as an async LangChain tool. It uses
+Implemented in `apps/expense-api/tools/expenses.py` as an async LangChain tool. It uses
 the authenticated request-local merchant principal and does not accept `user_id`.
 Category names resolve to that user's category IDs before calling the shared
 expense service. Call with `await add_expense.ainvoke({...})` using the input
@@ -85,7 +85,7 @@ Recommended result:
 ### `find_expenses`
 Purpose: retrieve candidate expenses for conversational queries or follow-up mutation.
 
-Implemented in `backend/tools/expenses.py`. Results are scoped to the demo user,
+Implemented in `apps/expense-api/tools/expenses.py`. Results are scoped to the demo user,
 ordered newest first, limited to at most 20 records, and include stable IDs plus
 category names. Supported filters are merchant text, exact category name, and an
 inclusive date range.
@@ -124,7 +124,7 @@ Contract:
 - confirmation must happen before this tool is called,
 - tool should return enough information to confirm what was deleted.
 
-Implemented in `backend/tools/expenses.py` for an exact, user-scoped expense ID.
+Implemented in `apps/expense-api/tools/expenses.py` for an exact, user-scoped expense ID.
 The result includes the deleted record snapshot. The agent must show the exact
 candidate and receive explicit confirmation in a later user message before
 calling the tool; the initial deletion request is not confirmation.
