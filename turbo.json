@@ -17,6 +17,13 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "env": [
+        "APP_ENV",
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "OPENAI_API_KEY",
+        "REFRESH_TOKEN_PEPPER"
+      ],
       "outputs": ["coverage/**"]
     },
     "typecheck": {
