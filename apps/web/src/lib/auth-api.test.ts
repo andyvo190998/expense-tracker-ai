@@ -1,0 +1,98 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { authApi, authFetch } from "./auth-api";
+
+describe("authFetch", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		document.cookie = "csrf_token=; Max-Age=0; path=/";
+	});
+
+	it("adds credentials and CSRF to mutations", async () => {
+		document.cookie = "csrf_token=csrf-value; path=/";
+		const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await authFetch("/api/expenses/1", { method: "PATCH", body: "{}" });
+
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/expenses/1");
+		expect(init.credentials).toBe("include");
+		expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("csrf-value");
+	});
+
+	it("refreshes and retries once after an access 401", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(null, { status: 401 }))
+			.mockResolvedValueOnce(new Response(null, { status: 200 }))
+			.mockResolvedValueOnce(new Response(null, { status: 200 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		expect((await authFetch("/api/expenses")).status).toBe(200);
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+		expect(fetchMock.mock.calls[1][0]).toBe("/api/auth/refresh");
+	});
+
+	it("does not loop when refresh fails", async () => {
+		const unauthorized = vi.fn();
+		window.addEventListener("auth:unauthorized", unauthorized);
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(null, { status: 401 }))
+			.mockResolvedValueOnce(new Response(null, { status: 401 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		expect((await authFetch("/api/expenses")).status).toBe(401);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(unauthorized).toHaveBeenCalledOnce();
+		window.removeEventListener("auth:unauthorized", unauthorized);
+	});
+
+	it("marks the UI unauthenticated when a retried request is still unauthorized", async () => {
+		const unauthorized = vi.fn();
+		window.addEventListener("auth:unauthorized", unauthorized);
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(null, { status: 401 }))
+			.mockResolvedValueOnce(new Response(null, { status: 200 }))
+			.mockResolvedValueOnce(new Response(null, { status: 401 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		expect((await authFetch("/api/expenses")).status).toBe(401);
+		expect(unauthorized).toHaveBeenCalledOnce();
+		window.removeEventListener("auth:unauthorized", unauthorized);
+	});
+
+	it("updates the authenticated profile through the CSRF-protected endpoint", async () => {
+		document.cookie = "csrf_token=csrf-value; path=/";
+		const user = {
+			id: "1",
+			email: "user@example.com",
+			name: "Updated User",
+			role: "merchant" as const,
+			is_active: true,
+			monthly_expense_target: "1250.50",
+		};
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify(user), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			authApi.updateProfile({ name: "Updated User", monthly_expense_target: "1250.50" }),
+		).resolves.toEqual(user);
+
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/auth/me");
+		expect(init.method).toBe("PATCH");
+		expect(JSON.parse(String(init.body))).toEqual({
+			name: "Updated User",
+			monthly_expense_target: "1250.50",
+		});
+		expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("csrf-value");
+	});
+});
