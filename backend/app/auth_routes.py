@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_schemas import AuthUserResponse, LoginRequest, RegisterRequest
+from app.auth_dependencies import merchant_principal
+from app.auth_schemas import (
+    AuthUserResponse,
+    LoginRequest,
+    RegisterRequest,
+    UserProfileUpdate,
+)
 from app.auth_services import (
     AuthFailure,
     SessionTokens,
@@ -12,7 +18,9 @@ from app.auth_services import (
     register_user,
     revoke_refresh_token,
     rotate_refresh_token,
+    update_user_profile,
 )
+from app.auth_types import Principal
 from app.config import get_settings
 from app.database import get_db
 from app.models import User
@@ -25,6 +33,7 @@ from app.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 Session = Annotated[AsyncSession, Depends(get_db)]
+Merchant = Annotated[Principal, Depends(merchant_principal)]
 
 
 def error_response(error: AuthFailure) -> JSONResponse:
@@ -139,3 +148,16 @@ async def me(request: Request, session: Session):
         return user
     except ValueError:
         return error_response(AuthFailure("UNAUTHENTICATED", "Authentication required."))
+
+
+@router.patch("/me", response_model=AuthUserResponse)
+async def update_me(
+    data: UserProfileUpdate,
+    session: Session,
+    principal: Merchant,
+    _: Annotated[None, Depends(require_csrf)],
+):
+    user = await session.get(User, principal.user_id)
+    if user is None:
+        raise AuthFailure("UNAUTHENTICATED", "Authentication required.")
+    return await update_user_profile(session, user, data)

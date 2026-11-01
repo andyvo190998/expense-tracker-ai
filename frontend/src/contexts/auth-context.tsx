@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { authApi } from "@/lib/auth-api";
-import type { AuthUser, LoginInput, RegisterInput } from "@/lib/auth-types";
+import type { AuthUser, LoginInput, RegisterInput, UserProfileUpdate } from "@/lib/auth-types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -12,6 +12,7 @@ type AuthContextValue = {
 	user: AuthUser | null;
 	login(input: LoginInput): Promise<AuthUser>;
 	register(input: RegisterInput): Promise<AuthUser>;
+	updateProfile(input: UserProfileUpdate): Promise<AuthUser>;
 	logout(): Promise<void>;
 };
 
@@ -64,10 +65,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUser(null);
 		setStatus("unauthenticated");
 	}, []);
+	const updateProfile = useCallback(async (input: UserProfileUpdate) => {
+		const value = await authApi.updateProfile(input);
+		setUser(value);
+		return value;
+	}, []);
 
 	const value = useMemo(
-		() => ({ status, user, login, register, logout }),
-		[status, user, login, register, logout],
+		() => ({ status, user, login, register, updateProfile, logout }),
+		[status, user, login, register, updateProfile, logout],
 	);
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

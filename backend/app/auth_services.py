@@ -7,7 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_schemas import RegisterRequest
+from app.auth_schemas import RegisterRequest, UserProfileUpdate
 from app.auth_types import UserRole
 from app.config import get_settings
 from app.models import Category, RefreshToken, User
@@ -100,6 +100,16 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     session.add(record)
     await session.commit()
     return SessionTokens(user, raw)
+
+
+async def update_user_profile(
+    session: AsyncSession, user: User, data: UserProfileUpdate
+) -> User:
+    user.name = data.name
+    user.monthly_expense_target = data.monthly_expense_target
+    await session.commit()
+    await session.refresh(user)
+    return user
 
 
 async def rotate_refresh_token(session: AsyncSession, raw: str) -> SessionTokens:

@@ -26,6 +26,10 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint("length(default_currency) = 3", name="ck_users_currency"),
+        CheckConstraint(
+            "monthly_expense_target > 0",
+            name="ck_users_monthly_expense_target_positive",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -51,6 +55,9 @@ class User(Base):
     )
     default_currency: Mapped[str] = mapped_column(
         String(3), default="EUR", server_default="EUR"
+    )
+    monthly_expense_target: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), default=Decimal("500.00"), server_default="500.00"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

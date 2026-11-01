@@ -122,6 +122,12 @@ Frontend code must:
 
 ## Core Data Model
 
+### User
+
+User profile settings include an editable display name and a positive monthly
+expense target stored as `NUMERIC(12,2)`. The target is user-scoped and powers
+dashboard budget progress; it is not exposed through admin account listings.
+
 ### Expense
 Suggested fields:
 
@@ -199,6 +205,8 @@ update_expense(id, amount=35)
 Suggested REST surface:
 
 ```text
+PATCH  /auth/me
+
 POST   /expenses
 GET    /expenses
 GET    /expenses/{id}

@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -46,9 +47,33 @@ class AuthUserResponse(BaseModel):
     name: str
     role: UserRole
     is_active: bool
+    monthly_expense_target: Decimal
 
 
-class AdminUserResponse(AuthUserResponse):
+class UserProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=200)
+    monthly_expense_target: Decimal = Field(
+        gt=0, max_digits=12, decimal_places=2
+    )
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        if not (clean := value.strip()):
+            raise ValueError("name must not be blank")
+        return clean
+
+
+class AdminUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: str
+    name: str
+    role: UserRole
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 

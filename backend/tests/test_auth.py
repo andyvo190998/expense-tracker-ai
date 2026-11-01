@@ -31,6 +31,7 @@ def test_register_normalizes_email_forces_merchant_and_sets_http_only_cookies(au
     assert response.status_code == 201
     assert response.json()["email"] == "user@example.com"
     assert response.json()["role"] == "merchant"
+    assert response.json()["monthly_expense_target"] == "500.00"
     assert "token" not in response.text.lower()
     cookies = response.headers.get_list("set-cookie")
     assert any("access_token=" in value and "HttpOnly" in value for value in cookies)
@@ -117,6 +118,66 @@ def test_inactive_user_cannot_continue_with_unexpired_access(auth_client):
 
     asyncio.run(deactivate())
     assert client.get("/auth/me").status_code == 401
+
+
+def test_merchant_updates_own_name_and_monthly_expense_target(auth_client):
+    client, sessions = auth_client
+    assert register(client).status_code == 201
+    user_id = response_user_id(client)
+
+    response = client.patch(
+        "/auth/me",
+        headers=csrf(client),
+        json={"name": "Updated User", "monthly_expense_target": "1250.50"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(user_id),
+        "email": "user@example.com",
+        "name": "Updated User",
+        "role": "merchant",
+        "is_active": True,
+        "monthly_expense_target": "1250.50",
+    }
+
+    async def load_user():
+        async with sessions() as session:
+            return await session.get(User, user_id)
+
+    stored = asyncio.run(load_user())
+    assert stored.name == "Updated User"
+    assert str(stored.monthly_expense_target) == "1250.50"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"name": "   ", "monthly_expense_target": "500.00"},
+        {"name": "User", "monthly_expense_target": "0.00"},
+        {"name": "User", "monthly_expense_target": "500.001"},
+    ],
+)
+def test_profile_update_rejects_invalid_name_or_monthly_target(auth_client, payload):
+    client, _ = auth_client
+    assert register(client).status_code == 201
+
+    response = client.patch("/auth/me", headers=csrf(client), json=payload)
+
+    assert response.status_code == 422
+
+
+def test_profile_update_requires_csrf(auth_client):
+    client, _ = auth_client
+    assert register(client).status_code == 201
+
+    response = client.patch(
+        "/auth/me",
+        json={"name": "Updated", "monthly_expense_target": "600.00"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "CSRF_FAILED"
 
 
 def response_user_id(client):

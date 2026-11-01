@@ -12,3 +12,4 @@ async function handle(request: NextRequest, context: { params: Promise<{ action:
 
 export const GET = handle;
 export const POST = handle;
+export const PATCH = handle;

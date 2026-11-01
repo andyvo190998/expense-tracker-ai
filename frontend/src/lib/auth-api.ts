@@ -1,4 +1,4 @@
-import type { AuthUser, LoginInput, RegisterInput } from "./auth-types";
+import type { AuthUser, LoginInput, RegisterInput, UserProfileUpdate } from "./auth-types";
 import { AuthError } from "./auth-types";
 
 function cookie(name: string): string | undefined {
@@ -93,5 +93,14 @@ export const authApi = {
 	async logout(): Promise<void> {
 		await ensureCsrf();
 		await authFetch("/api/auth/logout", { method: "POST" }, false);
+	},
+	async updateProfile(input: UserProfileUpdate): Promise<AuthUser> {
+		return json<AuthUser>(
+			await authFetch("/api/auth/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(input),
+			}),
+		);
 	},
 };

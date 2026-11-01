@@ -10,12 +10,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/contexts/auth-context";
 import { useCategoryExpenses } from "@/hooks/use-category-expenses";
-import { MONTHLY_TARGET } from "@/lib/expense-constants";
 import { budgetProgress, currentMonth, percentageOf } from "@/lib/expense-period";
 
 export function MetricsOverview() {
 	const { i18n, t } = useTranslation();
+	const { user } = useAuth();
 	const currentExpenses = useCategoryExpenses(currentMonth());
 	const locale = i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US";
 	const currency = new Intl.NumberFormat(locale, {
@@ -23,14 +24,18 @@ export function MetricsOverview() {
 		currency: currentExpenses.data?.currency ?? "EUR",
 	});
 	const currentAmount = currentExpenses.data ? Number(currentExpenses.data.total) : null;
+	const monthlyTarget = user ? Number(user.monthly_expense_target) : null;
 	const currentTotal = currentAmount === null ? "—" : currency.format(currentAmount);
 	const currentPercentage =
-		currentAmount === null
+		currentAmount === null || monthlyTarget === null
 			? "—"
 			: `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
-					percentageOf(currentAmount, MONTHLY_TARGET),
+					percentageOf(currentAmount, monthlyTarget),
 				)}%`;
-	const progress = currentAmount === null ? null : budgetProgress(currentAmount, MONTHLY_TARGET);
+	const progress =
+		currentAmount === null || monthlyTarget === null
+			? null
+			: budgetProgress(currentAmount, monthlyTarget);
 	const budgetStatus =
 		progress === null
 			? t("dashboard.budget.loading")
@@ -58,7 +63,9 @@ export function MetricsOverview() {
 					<div className="text-muted-foreground mt-2 grid grid-cols-3 text-xs tabular-nums">
 						<span className="text-left">{currency.format(0)}</span>
 						<span className="text-center font-medium text-foreground">{currentTotal}</span>
-						<span className="text-right">{currency.format(MONTHLY_TARGET)}</span>
+						<span className="text-right">
+							{monthlyTarget === null ? "—" : currency.format(monthlyTarget)}
+						</span>
 					</div>
 				</CardContent>
 			</Card>

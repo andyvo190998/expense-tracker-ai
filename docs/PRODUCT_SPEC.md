@@ -85,6 +85,15 @@ compare this month with last month
 
 Calculations must come from deterministic backend/database queries.
 
+### 7. Profile and monthly expense target
+
+- Merchants may update their own display name and monthly expense target.
+- Email is visible in profile settings but is not editable.
+- The monthly expense target must be positive and support at most two decimal places.
+- New and existing accounts default to `500.00` EUR until the user changes the target.
+- Dashboard budget progress uses the authenticated user's saved target, never a frontend constant.
+- Admin account listings do not expose a merchant's monthly expense target.
+
 ## Default Behavior
 
 ### Currency

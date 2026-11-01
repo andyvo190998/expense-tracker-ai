@@ -8,7 +8,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { authFetch } from "@/lib/auth-api";
 import type { AuthUser } from "@/lib/auth-types";
 
-type AdminUser = AuthUser & { created_at: string; updated_at: string };
+type AdminUser = Omit<AuthUser, "monthly_expense_target"> & {
+	created_at: string;
+	updated_at: string;
+};
 
 export default function AdminUsersPage() {
 	const { user: currentUser } = useAuth();

@@ -87,6 +87,7 @@ Tasks:
 
 Done when:
 - dashboard uses REST/data APIs rather than asking the LLM to calculate values.
+- monthly budget progress uses the authenticated user's persisted expense target.
 
 ## Milestone 6 — Read and Analytics Tools
 Goal: let the assistant answer questions from live data.

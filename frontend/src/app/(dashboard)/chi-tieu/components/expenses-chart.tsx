@@ -21,12 +21,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 import { useExpenses } from "@/hooks/use-expenses";
-import { MONTHLY_TARGET } from "@/lib/expense-constants";
 import { currentMonth, monthRange } from "@/lib/expense-period";
 
 export function ExpensesChart() {
 	const { i18n, t } = useTranslation();
+	const { user } = useAuth();
 	const [month, setMonth] = useState(currentMonth);
 	const query = useExpenses(month);
 	const locale = i18n.resolvedLanguage === "vi" ? "vi-VN" : "en-US";
@@ -59,16 +60,15 @@ export function ExpensesChart() {
 		return Array.from({ length: days }, (_, index) => {
 			const day = String(index + 1).padStart(2, "0");
 			const date = `${month}-${day}`;
-			// eslint-disable-next-line react-hooks/immutability
 			monthTotal += totals.get(date) ?? 0;
 			return {
 				date,
 				day: `${day}/${month.slice(5)}`,
 				expenses: monthTotal,
-				target: MONTHLY_TARGET,
+				target: Number(user?.monthly_expense_target ?? 0),
 			};
 		});
-	}, [month, query.data]);
+	}, [month, query.data, user?.monthly_expense_target]);
 	const chartConfig = {
 		expenses: { label: t("dashboard.sales"), color: "var(--primary)" },
 		target: { label: t("dashboard.target"), color: "var(--primary)" },
@@ -81,7 +81,7 @@ export function ExpensesChart() {
 					<CardTitle>{t("dashboard.statistics")}</CardTitle>
 					<CardDescription>{t("dashboard.comparison")}</CardDescription>
 				</div>
-				<div className="flex items-center space-x-2">
+				<div className="flex items-center gap-2">
 					<Select value={month} onValueChange={setMonth}>
 						<SelectTrigger
 							className="w-32 cursor-pointer"

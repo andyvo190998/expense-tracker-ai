@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { authFetch } from "./auth-api";
+import { authApi, authFetch } from "./auth-api";
 
 describe("authFetch", () => {
 	afterEach(() => {
@@ -62,5 +62,37 @@ describe("authFetch", () => {
 		expect((await authFetch("/api/expenses")).status).toBe(401);
 		expect(unauthorized).toHaveBeenCalledOnce();
 		window.removeEventListener("auth:unauthorized", unauthorized);
+	});
+
+	it("updates the authenticated profile through the CSRF-protected endpoint", async () => {
+		document.cookie = "csrf_token=csrf-value; path=/";
+		const user = {
+			id: "1",
+			email: "user@example.com",
+			name: "Updated User",
+			role: "merchant" as const,
+			is_active: true,
+			monthly_expense_target: "1250.50",
+		};
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify(user), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			authApi.updateProfile({ name: "Updated User", monthly_expense_target: "1250.50" }),
+		).resolves.toEqual(user);
+
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/auth/me");
+		expect(init.method).toBe("PATCH");
+		expect(JSON.parse(String(init.body))).toEqual({
+			name: "Updated User",
+			monthly_expense_target: "1250.50",
+		});
+		expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("csrf-value");
 	});
 });

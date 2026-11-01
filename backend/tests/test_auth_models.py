@@ -15,7 +15,14 @@ def test_auth_schema_is_registered():
     users = Base.metadata.tables["users"]
     refresh_tokens = Base.metadata.tables["refresh_tokens"]
 
-    assert {"password_hash", "role", "is_active", "updated_at"} <= set(users.c.keys())
+    assert {
+        "password_hash",
+        "role",
+        "is_active",
+        "monthly_expense_target",
+        "updated_at",
+    } <= set(users.c.keys())
+    assert users.c.monthly_expense_target.server_default is not None
     assert refresh_tokens.c.token_hash.unique
     assert refresh_tokens.c.user_id.foreign_keys
     assert refresh_tokens.c.family_id.index
