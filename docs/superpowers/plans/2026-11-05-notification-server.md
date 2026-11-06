@@ -307,6 +307,8 @@ if __name__ == "__main__":
 
 ## 5. Build the dedicated NestJS notification service
 
+> Use the [DDD code guide for the existing NestJS 12 scaffold](2026-11-06-notification-server-ddd-code.md) for the worker code and Dockerfile. The original NestJS 11 examples below use a separate scaffold.
+
 - [ ] Create `apps/notification-server/package.json` with name `@expense-tracker/notification-server`, `"private": true`, `"files": ["dist"]` and scripts `"build": "tsc -p tsconfig.json"`, `"typecheck": "tsc -p tsconfig.json --noEmit"`, and `"start": "node dist/main.js"`. The existing pnpm workspace includes `apps/*`. From the repo root, install dependencies and commit the shared lockfile.
 
 ```bash

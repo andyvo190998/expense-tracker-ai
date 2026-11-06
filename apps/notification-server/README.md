@@ -25,6 +25,10 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+The notification worker registers `kafkajs-snappy` in its Kafka configuration
+to read Snappy-compressed events. KafkaJS bundles GZIP support; Snappy requires
+this additional codec.
+
 ## Project setup
 
 ```bash
