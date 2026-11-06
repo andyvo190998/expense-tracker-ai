@@ -1,7 +1,7 @@
 # Railway deployment
 
-Deploy the repository as three services in one Railway project: PostgreSQL,
-`backend`, and `frontend`. Keeping them in one project allows the application
+Deploy the repository as four services in one Railway project: PostgreSQL,
+`expense-api`, `workforce-api`, and `web`. Keeping them in one project allows the application
 services to use Railway's private network.
 
 ## PostgreSQL
@@ -13,7 +13,8 @@ administration requires it.
 
 Create a service from this repository and configure:
 
-- Root directory: `/backend`
+- Root directory: `/`
+- Dockerfile: `/apps/expense-api/Dockerfile`
 - Builder: Dockerfile
 - Healthcheck path: `/agents/expense/health`
 - Pre-deploy command: `alembic upgrade head`
@@ -29,11 +30,19 @@ Replace `Postgres` in the reference if the database service has a different
 name. Generate a public domain only if clients outside the Railway project need
 to call the backend directly.
 
-## Frontend service
+## Workforce service
+
+Create a service with root directory `/` and Dockerfile
+`/apps/workforce-api/Dockerfile`. Point `DATABASE_URL` at the workforce
+database and use the same JWT issuer, audience, and signing secret as the
+expense API.
+
+## Web service
 
 Create another service from the same repository and configure:
 
-- Root directory: `/frontend`
+- Root directory: `/`
+- Dockerfile: `/apps/web/Dockerfile`
 - Builder: Dockerfile
 - Healthcheck path: `/`
 
@@ -51,8 +60,8 @@ that value automatically.
 ## Deployment order
 
 1. Deploy PostgreSQL.
-2. Deploy the backend and confirm its healthcheck passes.
-3. Deploy the frontend and open its generated public domain.
+2. Deploy both APIs and confirm their healthchecks pass.
+3. Deploy the web application and open its generated public domain.
 
 The backend pre-deploy command applies Alembic migrations before a new
 deployment starts serving traffic. Application startup intentionally does not
