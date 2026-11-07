@@ -24,7 +24,9 @@ def register(client, email="user@example.com"):
     )
 
 
-def test_register_normalizes_email_forces_merchant_and_sets_http_only_cookies(auth_client):
+def test_register_normalizes_email_forces_merchant_and_sets_http_only_cookies(
+    auth_client,
+):
     client, _ = auth_client
     response = register(client, "  USER@Example.COM ")
 
@@ -57,7 +59,11 @@ def test_configured_csrf_cookie_name_is_enforced(auth_client, monkeypatch):
     response = client.post(
         "/auth/register",
         headers={"X-CSRF-Token": token},
-        json={"email": "custom@example.com", "name": "Custom", "password": VALID_PASSWORD},
+        json={
+            "email": "custom@example.com",
+            "name": "Custom",
+            "password": VALID_PASSWORD,
+        },
     )
     assert response.status_code == 201
 
@@ -139,6 +145,7 @@ def test_merchant_updates_own_name_and_monthly_expense_target(auth_client):
         "role": "merchant",
         "is_active": True,
         "monthly_expense_target": "1250.50",
+        "notification_emails": [],
     }
 
     async def load_user():
@@ -184,3 +191,90 @@ def response_user_id(client):
     from uuid import UUID
 
     return UUID(client.get("/auth/me").json()["id"])
+
+
+def test_profile_notification_recipients_save_preserve_and_clear(auth_client):
+    client, sessions = auth_client
+    assert register(client).status_code == 201
+    user_id = response_user_id(client)
+    assert client.get("/auth/me").json()["notification_emails"] == []
+    profile = {"name": "User", "monthly_expense_target": "500.00"}
+    response = client.patch(
+        "/auth/me",
+        headers=csrf(client),
+        json={
+            **profile,
+            "notification_emails": [
+                "Owner@EXAMPLE.COM",
+                "owner@example.com",
+                "second@example.com",
+            ],
+        },
+    )
+    assert response.status_code == 200
+    expected = ["Owner@example.com", "second@example.com"]
+    assert response.json()["notification_emails"] == expected
+    assert client.get("/auth/me").json()["notification_emails"] == expected
+
+    async def saved():
+        async with sessions() as session:
+            return (await session.get(User, user_id)).notification_emails
+
+    assert asyncio.run(saved()) == expected
+    assert (
+        client.patch("/auth/me", headers=csrf(client), json=profile).json()[
+            "notification_emails"
+        ]
+        == expected
+    )
+    assert (
+        client.patch(
+            "/auth/me",
+            headers=csrf(client),
+            json={
+                **profile,
+                "notification_emails": [],
+            },
+        ).json()["notification_emails"]
+        == []
+    )
+    assert asyncio.run(saved()) == []
+
+
+@pytest.mark.parametrize("emails", [None, ["bad"], [""], ["a@example.com"] * 6])
+def test_profile_rejects_invalid_notification_recipients(auth_client, emails):
+    client, _ = auth_client
+    assert register(client).status_code == 201
+    response = client.patch(
+        "/auth/me",
+        headers=csrf(client),
+        json={
+            "name": "User",
+            "monthly_expense_target": "500.00",
+            "notification_emails": emails,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_profile_recipients_are_account_scoped(auth_client):
+    client, sessions = auth_client
+    assert register(client, "first@example.com").status_code == 201
+    first_id = response_user_id(client)
+    assert register(client, "second@example.com").status_code == 201
+    response = client.patch(
+        "/auth/me",
+        headers=csrf(client),
+        json={
+            "name": "Second",
+            "monthly_expense_target": "500.00",
+            "notification_emails": ["notify@example.com"],
+        },
+    )
+    assert response.status_code == 200
+
+    async def first_recipients():
+        async with sessions() as session:
+            return (await session.get(User, first_id)).notification_emails
+
+    assert asyncio.run(first_recipients()) == []

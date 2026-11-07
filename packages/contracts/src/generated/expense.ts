@@ -356,6 +356,8 @@ export interface components {
             monthly_expense_target: string;
             /** Name */
             name: string;
+            /** Notification Emails */
+            notification_emails: string[];
             role: components["schemas"]["UserRole"];
         };
         /**
@@ -842,6 +844,8 @@ export interface components {
             monthly_expense_target: number | string;
             /** Name */
             name: string;
+            /** Notification Emails */
+            notification_emails?: string[];
         };
         /**
          * UserRole

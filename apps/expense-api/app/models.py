@@ -15,6 +15,8 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    JSON,
+    text
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -65,6 +67,12 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    notification_emails: Mapped[list[str]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'")
+	)
 
 
 class RefreshToken(Base):
@@ -134,3 +142,20 @@ class Expense(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ExpenseOutbox(Base):
+    __tablename__ = "expense_outbox"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+	)
+
+    payload: Mapped[dict[str,object]] = mapped_column(
+        JSON,
+        nullable=False
+	)

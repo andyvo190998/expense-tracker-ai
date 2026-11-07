@@ -275,3 +275,27 @@ At minimum, cover:
 - user isolation,
 - aggregate totals,
 - category aggregation.
+
+
+### Expense notification email snapshot
+
+For a merchant with configured notification recipients, expense creation atomically
+stores an outbox event containing the saved expense amount and currency, the current
+Europe/Berlin calendar month, the saved monthly EUR target, SQL category totals,
+remaining budget and any overspend. Calculations use Decimal. Concurrent creates for
+one user serialize through a user-row lock. A backdated expense still produces a
+summary of the current month, whose totals use expense dates and include EUR only.
+
+The optional `email_summary` field extends `expense.created.v1`. Deploy the updated
+NestJS consumer before the producer. Legacy events without this field retain the
+original subject and text on replay. New events render escaped HTML category rows
+and progress bars, plus a plain-text alternative. Snapshot content stays fixed on
+replay. Recipients come from `users.notification_emails`, including in local tests.
+Chat confirms persistence independently of notification delivery.
+
+
+The notification snapshot also carries optional `expense_category` and
+`expense_description` fields. New email subjects include these values after the
+expense amount and before the monthly balance. Line breaks and repeated whitespace
+are collapsed in the subject. Empty descriptions are omitted. Older events lacking
+these fields preserve their existing subject on replay.

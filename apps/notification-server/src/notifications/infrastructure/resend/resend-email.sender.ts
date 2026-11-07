@@ -24,6 +24,7 @@ export class ResendEmailSender {
       to: [email.recipients],
       subject: email.subject,
       text: email.text,
+      html: email.html,
     });
 
     for (let attempt = 0; attempt < 4; attempt++) {

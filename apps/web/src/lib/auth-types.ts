@@ -7,11 +7,16 @@ export type AuthUser = {
 	role: UserRole;
 	is_active: boolean;
 	monthly_expense_target: string;
+	notification_emails: string[];
 };
 
 export type LoginInput = { email: string; password: string };
 export type RegisterInput = { email: string; name: string; password: string };
-export type UserProfileUpdate = { name: string; monthly_expense_target: string };
+export type UserProfileUpdate = {
+	name: string;
+	monthly_expense_target: string;
+	notification_emails?: string[];
+};
 
 export class AuthError extends Error {
 	constructor(

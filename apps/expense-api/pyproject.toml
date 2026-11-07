@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "ag-ui-langgraph>=0.0.45",
+    "aiokafka>=0.15.0",
     "alembic>=1.20.0",
     "asyncpg>=0.31.0",
     "copilotkit>=0.1.96",

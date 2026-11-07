@@ -1,3 +1,4 @@
+import { renderExpenseEmail } from './render-expense-email.js';
 import {
   ExpenseNotification,
   sendDeadline,
@@ -20,6 +21,7 @@ export class NotifyExpenseCreated {
   ): Promise<DeliveryOutcome[]> {
     const deadlineMs = sendDeadline(notification);
     const outcomes: DeliveryOutcome[] = [];
+    const message = renderExpenseEmail(notification.emailSummary);
 
     for (const recipient of notification.recipients) {
       context.signal.throwIfAborted();
@@ -35,8 +37,7 @@ export class NotifyExpenseCreated {
           {
             eventId: notification.eventId,
             recipients: recipient,
-            subject: 'Expense Created',
-            text: 'A new expense was added to your expense tracker.',
+            ...message,
             deadline: deadlineMs,
           },
           context,

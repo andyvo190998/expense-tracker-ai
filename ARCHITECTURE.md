@@ -262,3 +262,16 @@ Recommended early size when LLM inference is external:
 - 80–160 GB SSD
 
 Scale components independently only after usage demonstrates a need.
+
+
+### Expense notification summary
+
+Expense creation stores an optional `email_summary` snapshot on the Kafka outbox
+event using the authenticated user's configured recipients and monthly target.
+The snapshot uses the current Europe/Berlin month and the existing EUR-only SQL
+category query. Decimal code computes remaining budget, overspend and category
+percentages. The NestJS worker renders a stable subject and HTML/plain-text body
+from that snapshot. Concurrent creates for one user take a user-row lock before
+inserting. The worker accepts older events without a summary and preserves their
+generic email payload during replay. Deploy the worker's extended schema before
+enabling the enriched producer.

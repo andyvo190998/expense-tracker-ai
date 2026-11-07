@@ -13,6 +13,7 @@ vi.mock("@/contexts/auth-context", () => ({
 			role: "merchant",
 			is_active: true,
 			monthly_expense_target: "500.00",
+			notification_emails: [],
 		},
 		updateProfile,
 	}),
@@ -31,6 +32,7 @@ it("loads and saves the user's name and monthly expense target", async () => {
 		role: "merchant",
 		is_active: true,
 		monthly_expense_target: "1250.50",
+		notification_emails: [],
 	});
 	render(<UserSettingsPage />);
 
@@ -45,6 +47,7 @@ it("loads and saves the user's name and monthly expense target", async () => {
 	await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({
 		name: "Updated User",
 		monthly_expense_target: "1250.50",
+		notification_emails: [],
 	}));
 	expect(await screen.findByText("Profile updated.")).toBeInTheDocument();
 });

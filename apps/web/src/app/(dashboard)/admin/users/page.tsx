@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { authFetch } from "@/lib/auth-api";
 import type { AuthUser } from "@/lib/auth-types";
 
-type AdminUser = Omit<AuthUser, "monthly_expense_target"> & {
+type AdminUser = Omit<AuthUser, "monthly_expense_target" | "notification_emails"> & {
 	created_at: string;
 	updated_at: string;
 };

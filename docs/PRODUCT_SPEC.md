@@ -211,3 +211,31 @@ delete my last Aldi expense
 Expected result:
 - candidate is identified,
 - deletion is not executed before confirmation.
+
+
+## Expense notification emails
+
+Merchants with configured notification recipients receive an email after a successful
+expense creation. The subject includes the new expense amount and the remaining
+monthly EUR budget, or the amount over budget. The HTML email shows the monthly
+target, total spent and category amounts with percentage bars, with a plain-text
+alternative. Month boundaries use Europe/Berlin and the summary is a snapshot at
+creation time. The current month is summarized even when the new expense is backdated.
+Email recipients receive financial details and must be configured on the user's profile.
+
+
+### Notification recipients in account settings
+
+Merchants configure up to five notification email addresses at `/settings/account`
+using one address per line. Saving updates only the authenticated merchant's
+`users.notification_emails`. The API validates addresses and removes duplicates
+case-insensitively while preserving the first spelling. Clearing the list disables
+future notification events. Queued events retain their original recipients.
+The field explains that notifications include financial details. The existing
+`/settings/user` alias uses the same form. Clients that omit the optional profile
+update field preserve existing recipients. Admin account listings omit recipients.
+
+
+Expense notification subjects include the saved expense's category and description
+when available, alongside the amount and monthly balance. A blank description is
+omitted. These values are taken from the saved expense snapshot.

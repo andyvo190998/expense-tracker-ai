@@ -1,11 +1,14 @@
 import uuid
+from calendar import monthrange
 from datetime import UTC, date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Category, Expense, RefreshToken, User
+from app.expense_events import ExpenseCreatedEvent, ExpenseEmailSummary
+from app.models import Category, Expense, ExpenseOutbox, RefreshToken, User
 from app.schemas import ExpenseCreate, ExpenseUpdate
 
 
@@ -13,10 +16,79 @@ async def create_expense(
     session: AsyncSession, user_id: uuid.UUID, data: ExpenseCreate
 ) -> Expense:
     expense = Expense(user_id=user_id, **data.model_dump())
-    session.add(expense)
-    await session.commit()
-    await session.refresh(expense)
+
+    try:
+        # Serialize creates for this account so each summary includes earlier creates.
+        user = await session.scalar(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        session.add(expense)
+        await session.flush()
+        await session.refresh(expense)
+
+        if user is not None and user.is_active and user.notification_emails:
+            occurred_at = datetime.now(UTC)
+            summary = await expense_email_summary(session, user, expense, occurred_at)
+            event = ExpenseCreatedEvent(
+                event_id=uuid.uuid4(),
+                expense_id=expense.id,
+                occurred_at=occurred_at,
+                recipients=user.notification_emails,
+                email_summary=summary,
+            )
+            session.add(
+                ExpenseOutbox(
+                    event_id=event.event_id,
+                    created_at=event.occurred_at,
+                    payload=event.model_dump(mode="json"),
+                )
+            )
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
     return expense
+
+
+async def expense_email_summary(
+    session: AsyncSession, user: User, expense: Expense, occurred_at: datetime
+) -> ExpenseEmailSummary:
+    today = occurred_at.astimezone(ZoneInfo("Europe/Berlin")).date()
+    start = today.replace(day=1)
+    end = today.replace(day=monthrange(today.year, today.month)[1])
+    rows = await get_spending_by_category(session, user.id, start, end)
+    spent = sum((amount for _, amount in rows), Decimal("0.00"))
+    budget = user.monthly_expense_target
+    category = await session.scalar(
+        select(Category.name).where(
+            Category.id == expense.category_id,
+            Category.user_id == user.id,
+        )
+    )
+    return ExpenseEmailSummary(
+        expense_category=category,
+        expense_description=expense.description,
+        expense_amount=format(expense.amount, ".2f"),
+        expense_currency=expense.currency,
+        month=today.strftime("%Y-%m"),
+        budget=format(budget, ".2f"),
+        spent=format(spent, ".2f"),
+        remaining=format(max(budget - spent, Decimal("0.00")), ".2f"),
+        over_budget=format(max(spent - budget, Decimal("0.00")), ".2f"),
+        categories=[
+            {
+                "category": name,
+                "amount": format(amount, ".2f"),
+                "percentage": format(
+                    (amount * 100 / spent).quantize(
+                        Decimal("0.1"), rounding=ROUND_HALF_UP
+                    ),
+                    ".1f",
+                ),
+            }
+            for name, amount in rows
+        ],
+    )
 
 
 async def list_expenses(

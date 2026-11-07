@@ -48,15 +48,24 @@ class AuthUserResponse(BaseModel):
     role: UserRole
     is_active: bool
     monthly_expense_target: Decimal
+    notification_emails: list[str]
 
 
 class UserProfileUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=200)
-    monthly_expense_target: Decimal = Field(
-        gt=0, max_digits=12, decimal_places=2
-    )
+    monthly_expense_target: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    notification_emails: list[EmailStr] = Field(default_factory=list, max_length=5)
+
+    @field_validator("notification_emails")
+    @classmethod
+    def unique_notification_emails(cls, values: list[EmailStr]) -> list[str]:
+        addresses: dict[str, str] = {}
+        for value in values:
+            address = str(value)
+            addresses.setdefault(address.casefold(), address)
+        return list(addresses.values())
 
     @field_validator("name")
     @classmethod

@@ -107,6 +107,10 @@ async def update_user_profile(
 ) -> User:
     user.name = data.name
     user.monthly_expense_target = data.monthly_expense_target
+    if "notification_emails" in data.model_fields_set:
+        user.notification_emails = [
+            str(address) for address in data.notification_emails
+        ]
     await session.commit()
     await session.refresh(user)
     return user

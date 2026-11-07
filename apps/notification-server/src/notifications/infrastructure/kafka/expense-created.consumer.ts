@@ -81,10 +81,11 @@ export class ExpenseCreatedConsumer
         eventId: event.event_id,
         occurredAt: new Date(event.occurred_at),
         recipients: event.recipients,
+        emailSummary: event.email_summary,
       },
       {
         signal: this.stop.signal,
-        checkpoint: record.heartbeat,
+        checkpoint: () => record.heartbeat(),
       },
     );
     for (const [index, result] of outcomes.entries()) {
