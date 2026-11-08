@@ -29,6 +29,48 @@ The notification worker registers `kafkajs-snappy` in its Kafka configuration
 to read Snappy-compressed events. KafkaJS bundles GZIP support; Snappy requires
 this additional codec.
 
+## Transactional email through Brevo SMTP
+
+The worker uses Nodemailer to send the existing subject, HTML and plain-text body
+through Brevo's SMTP relay, with one recipient per email.
+
+Configure these values in the worker's local `.env` and Railway variables:
+
+```dotenv
+BREVO_SMTP_HOST=smtp-relay.brevo.com
+BREVO_SMTP_PORT=587
+BREVO_SMTP_USER=your-login@smtp-brevo.com
+BREVO_SMTP_PASSWORD=your-smtp-key
+BREVO_FROM_EMAIL=notifications@your-verified-domain.example
+BREVO_FROM_NAME=Expense Tracker
+```
+
+Copy the login and SMTP key from Brevo's SMTP settings. Register and verify the
+sender address. Port 587 requires STARTTLS. Port 465 uses implicit TLS and port
+2525 also requires STARTTLS. Restart the notification server after updating `.env`.
+
+An HTTP 401 from the previous adapter indicates that an SMTP key was used against
+the HTTP API or the HTTP API credentials were invalid. This adapter authenticates
+directly with the SMTP login and key.
+
+Temporary SMTP rejections and connection failures before submission retry up to
+four times. Authentication and TLS failures stop processing and leave the Kafka
+offset uncommitted. A permanent rejection is dead-lettered. A connection failure
+after submission can have an unknown outcome. The worker records
+`smtp_delivery_uncertain` in the DLQ rather than automatically sending again.
+Investigate Brevo's transactional logs before replaying an uncertain event.
+
+The stable Message-ID is used for tracing and does not guarantee deduplication.
+SMTP does not provide the HTTP API's idempotency-key guarantee. A Kafka replay
+after successful delivery can produce another email.
+
+Railway permits outbound SMTP only on Pro plans and above. A Free, Trial or Hobby
+deployment requires an HTTPS email adapter.
+
+References:
+[Brevo SMTP setup](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP),
+[Railway outbound SMTP](https://docs.railway.com/networking/outbound-networking).
+
 ## Project setup
 
 ```bash

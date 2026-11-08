@@ -299,3 +299,11 @@ The notification snapshot also carries optional `expense_category` and
 expense amount and before the monthly balance. Line breaks and repeated whitespace
 are collapsed in the subject. Empty descriptions are omitted. Older events lacking
 these fields preserve their existing subject on replay.
+
+
+Notification delivery uses Brevo SMTP with TLS and SMTP-key authentication.
+A successful SMTP transaction confirms submission and records its Message-ID.
+The worker commits after all recipients have accepted or durably dead-lettered
+outcomes. Uncertain submissions are dead-lettered without an automatic resend.
+Message-IDs do not guarantee deduplication, so Kafka replay after SMTP acceptance
+can duplicate email. Authentication failures stop processing without committing.

@@ -91,7 +91,7 @@ export class ExpenseCreatedConsumer
     for (const [index, result] of outcomes.entries()) {
       if ('acceptId' in result) {
         this.log.log(
-          `resend_accepted event_id=${event.event_id} resend_id=${result.acceptId}`,
+          `email_accepted provider=brevo event_id=${event.event_id} transport=smtp message_id=${result.acceptId}`,
         );
       } else {
         await record.heartbeat();

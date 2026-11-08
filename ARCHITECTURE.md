@@ -275,3 +275,12 @@ from that snapshot. Concurrent creates for one user take a user-row lock before
 inserting. The worker accepts older events without a summary and preserves their
 generic email payload during replay. Deploy the worker's extended schema before
 enabling the enriched producer.
+
+
+The notification worker sends through Brevo SMTP using Nodemailer and the existing
+email-sender port. Subject and HTML/plain-text rendering stay in the application
+layer. The adapter uses SMTP login/key authentication and requires TLS. Temporary
+rejections retry with bounded backoff. Uncertain submissions go to the DLQ for
+investigation. SMTP Message-IDs support tracing rather than deduplication, so
+successful-email replays may duplicate mail. The worker continues to have no
+database. Railway SMTP deployment requires Pro or above.

@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ResendEmailSender } from './infrastructure/resend/resend-email.sender.js';
+import { BrevoEmailSender } from './infrastructure/brevo/brevo-email.sender.js';
 import { NotifyExpenseCreated } from './application/notify-expense-created.js';
 import { ExpenseCreatedConsumer } from './infrastructure/kafka/expense-created.consumer.js';
 
 @Module({
   providers: [
-    ResendEmailSender,
+    BrevoEmailSender,
     {
       provide: NotifyExpenseCreated,
-      inject: [ResendEmailSender],
-      useFactory: (sender: ResendEmailSender) =>
+      inject: [BrevoEmailSender],
+      useFactory: (sender: BrevoEmailSender) =>
         new NotifyExpenseCreated(sender),
     },
     ExpenseCreatedConsumer,
