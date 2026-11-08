@@ -1,0 +1,15 @@
+{
+  "name": "@expense-tracker/expense-api",
+  "private": true,
+  "scripts": {
+    "db:migrate": "uv run --env-file .env alembic upgrade head",
+    "dev": "concurrently --kill-others --names api,relay \"pnpm run dev:api\" \"pnpm run dev:relay\"",
+    "lint": "uv run --env-file .env ruff check .",
+    "test": "uv run --env-file .env pytest",
+    "dev:api": "uv run --env-file .env uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:relay": "uv run --env-file .env python -m app.outbox_relay"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}

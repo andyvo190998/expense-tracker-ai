@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: test
+      DATABASE_URL: sqlite+aiosqlite:///./test.db
+      OPENAI_API_KEY: test-key
+      JWT_SECRET: test-signing-secret-that-is-at-least-32-bytes
+      REFRESH_TOKEN_PEPPER: test-refresh-pepper-that-is-at-least-32-bytes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          working-directory: apps/expense-api
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --locked
+        working-directory: apps/expense-api
+      - run: cp apps/expense-api/.env.example apps/expense-api/.env
+      - run: pnpm contracts:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

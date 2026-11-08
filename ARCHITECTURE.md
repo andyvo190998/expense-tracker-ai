@@ -25,7 +25,7 @@ Expected normalized record:
 
 ```text
 ┌─────────────────────────────┐
-│ Next.js                     │
+│ apps/web: Next.js           │
 │ - dashboard                 │
 │ - expense management        │
 │ - CopilotKit chat UI        │
@@ -34,7 +34,7 @@ Expected normalized record:
         REST   │   AG-UI
                │
 ┌──────────────▼──────────────┐
-│ FastAPI                     │
+│ apps/expense-api: FastAPI   │
 │                             │
 │ REST application services   │
 │ LangGraph/LangChain agent   │
@@ -53,6 +53,11 @@ Expected normalized record:
 └─────────────────────────────┘
 
 External LLM provider is called only by the backend agent layer.
+
+The repository is orchestrated by pnpm workspaces and Turborepo. The separate
+NestJS workforce API lives in `apps/workforce-api`. Both backend OpenAPI schemas
+generate committed types and injectable client factories in
+`packages/contracts`; database models remain private to their owning service.
 ```
 
 ## Technology Choices
@@ -257,3 +262,25 @@ Recommended early size when LLM inference is external:
 - 80–160 GB SSD
 
 Scale components independently only after usage demonstrates a need.
+
+
+### Expense notification summary
+
+Expense creation stores an optional `email_summary` snapshot on the Kafka outbox
+event using the authenticated user's configured recipients and monthly target.
+The snapshot uses the current Europe/Berlin month and the existing EUR-only SQL
+category query. Decimal code computes remaining budget, overspend and category
+percentages. The NestJS worker renders a stable subject and HTML/plain-text body
+from that snapshot. Concurrent creates for one user take a user-row lock before
+inserting. The worker accepts older events without a summary and preserves their
+generic email payload during replay. Deploy the worker's extended schema before
+enabling the enriched producer.
+
+
+The notification worker sends through Brevo SMTP using Nodemailer and the existing
+email-sender port. Subject and HTML/plain-text rendering stay in the application
+layer. The adapter uses SMTP login/key authentication and requires TLS. Temporary
+rejections retry with bounded backoff. Uncertain submissions go to the DLQ for
+investigation. SMTP Message-IDs support tracing rather than deduplication, so
+successful-email replays may duplicate mail. The worker continues to have no
+database. Railway SMTP deployment requires Pro or above.

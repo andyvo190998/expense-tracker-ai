@@ -21,7 +21,7 @@ The agent must always follow these rules:
 
 ## Core Tools
 
-The agent is built by `backend/agent.py:create_expense_agent` using LangChain's
+The agent is built by `apps/expense-api/agent.py:create_expense_agent` using LangChain's
 `create_agent` and `CopilotKitMiddleware`. It exposes create, lookup, update,
 delete, and deterministic analytics tools.
 The centralized prompt receives the backend's current Europe/Berlin date at
@@ -34,7 +34,7 @@ tool schemas never accept `user_id`. Durable conversation state is deferred.
 ### `add_expense`
 Purpose: create one expense.
 
-Implemented in `backend/tools/expenses.py` as an async LangChain tool. It uses
+Implemented in `apps/expense-api/tools/expenses.py` as an async LangChain tool. It uses
 the authenticated request-local merchant principal and does not accept `user_id`.
 Category names resolve to that user's category IDs before calling the shared
 expense service. Call with `await add_expense.ainvoke({...})` using the input
@@ -85,7 +85,7 @@ Recommended result:
 ### `find_expenses`
 Purpose: retrieve candidate expenses for conversational queries or follow-up mutation.
 
-Implemented in `backend/tools/expenses.py`. Results are scoped to the demo user,
+Implemented in `apps/expense-api/tools/expenses.py`. Results are scoped to the demo user,
 ordered newest first, limited to at most 20 records, and include stable IDs plus
 category names. Supported filters are merchant text, exact category name, and an
 inclusive date range.
@@ -124,7 +124,7 @@ Contract:
 - confirmation must happen before this tool is called,
 - tool should return enough information to confirm what was deleted.
 
-Implemented in `backend/tools/expenses.py` for an exact, user-scoped expense ID.
+Implemented in `apps/expense-api/tools/expenses.py` for an exact, user-scoped expense ID.
 The result includes the deleted record snapshot. The agent must show the exact
 candidate and receive explicit confirmation in a later user message before
 calling the tool; the initial deletion request is not confirmation.
@@ -275,3 +275,35 @@ At minimum, cover:
 - user isolation,
 - aggregate totals,
 - category aggregation.
+
+
+### Expense notification email snapshot
+
+For a merchant with configured notification recipients, expense creation atomically
+stores an outbox event containing the saved expense amount and currency, the current
+Europe/Berlin calendar month, the saved monthly EUR target, SQL category totals,
+remaining budget and any overspend. Calculations use Decimal. Concurrent creates for
+one user serialize through a user-row lock. A backdated expense still produces a
+summary of the current month, whose totals use expense dates and include EUR only.
+
+The optional `email_summary` field extends `expense.created.v1`. Deploy the updated
+NestJS consumer before the producer. Legacy events without this field retain the
+original subject and text on replay. New events render escaped HTML category rows
+and progress bars, plus a plain-text alternative. Snapshot content stays fixed on
+replay. Recipients come from `users.notification_emails`, including in local tests.
+Chat confirms persistence independently of notification delivery.
+
+
+The notification snapshot also carries optional `expense_category` and
+`expense_description` fields. New email subjects include these values after the
+expense amount and before the monthly balance. Line breaks and repeated whitespace
+are collapsed in the subject. Empty descriptions are omitted. Older events lacking
+these fields preserve their existing subject on replay.
+
+
+Notification delivery uses Brevo SMTP with TLS and SMTP-key authentication.
+A successful SMTP transaction confirms submission and records its Message-ID.
+The worker commits after all recipients have accepted or durably dead-lettered
+outcomes. Uncertain submissions are dead-lettered without an automatic resend.
+Message-IDs do not guarantee deduplication, so Kafka replay after SMTP acceptance
+can duplicate email. Authentication failures stop processing without committing.

@@ -15,8 +15,10 @@ Treat this file as a map. Read the linked docs before changing architecture or a
 Expected high-level structure:
 
 ```text
-frontend/    Next.js + TypeScript + CopilotKit
-backend/     FastAPI + Python + LangGraph/LangChain
+apps/web/             Next.js + TypeScript + CopilotKit
+apps/expense-api/     FastAPI + Python + LangGraph/LangChain
+apps/workforce-api/   NestJS + Prisma
+packages/contracts/   generated OpenAPI types and typed clients
 docs/        product and engineering source of truth
 docker-compose.yml
 ```
@@ -112,8 +114,7 @@ Do not invent passing test results.
 
 ## Scope-Specific Instructions
 Additional instructions may exist in:
-- `frontend/AGENTS.md`
-- `backend/AGENTS.md`
+- `apps/expense-api/AGENTS.md`
 
 More specific instructions take precedence for files in their subtree.
 
