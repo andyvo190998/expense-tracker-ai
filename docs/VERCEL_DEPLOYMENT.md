@@ -74,6 +74,10 @@ provider accept connections from the selected daemon region.
 
 ## Build, migrate, and verify
 
+Vercel Services does not support Edge Function output. The web app uses Next.js
+16's `src/proxy.ts` convention, which runs on Node.js, for request redirects.
+Keep this convention rather than adding an Edge `middleware.ts` entrypoint.
+
 Vercel builds each HTTP service independently. The workforce service explicitly
 generates Prisma Client before building to avoid stale generated clients from
 an install cache. The contracts package exports committed TypeScript sources;
