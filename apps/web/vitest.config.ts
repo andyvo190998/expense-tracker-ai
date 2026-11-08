@@ -5,7 +5,7 @@ export default defineConfig({
 	test: {
 		environment: "jsdom",
 		setupFiles: ["./src/test/setup.ts"],
-		include: ["src/**/*.test.tsx", "src/lib/auth-api.test.ts"],
+		include: ["src/**/*.test.tsx", "src/lib/auth-api.test.ts", "src/lib/backend-proxy.test.ts"],
 	},
 	resolve: {
 		alias: { "@": path.resolve(__dirname, "./src") },

@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv
+**/.next
+**/.vercel
+**/.turbo
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.tsbuildinfo

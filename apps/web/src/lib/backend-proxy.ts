@@ -1,14 +1,17 @@
 import type { NextRequest } from "next/server";
 
-const backendOrigin = new URL(
-	process.env.BACKEND_AGENT_URL ?? "http://localhost:8000/agents/expense",
-).origin;
+export function expenseApiUrl(path: string): URL {
+	const base = process.env.EXPENSE_API_URL ?? new URL(
+		process.env.BACKEND_AGENT_URL ?? "http://localhost:8000/agents/expense",
+	).origin;
+	return new URL(path.replace(/^\/+/, ""), `${base.replace(/\/+$/, "")}/`);
+}
 
 export async function proxyToBackend(
 	request: NextRequest,
 	backendPath: string,
 ): Promise<Response> {
-	const url = new URL(backendPath, backendOrigin);
+	const url = expenseApiUrl(backendPath);
 	url.search = request.nextUrl.search;
 	const headers = new Headers();
 	for (const name of ["cookie", "content-type", "x-csrf-token"]) {

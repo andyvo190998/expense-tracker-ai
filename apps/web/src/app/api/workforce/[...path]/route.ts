@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server";
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
 	const { path } = await context.params;
-	const url = new URL(`/v1/${path.join("/")}`, process.env.WORKFORCE_API_URL ?? "http://localhost:8001");
+	const base = process.env.WORKFORCE_API_URL ?? "http://localhost:8001";
+	const url = new URL(`v1/${path.join("/")}`, `${base.replace(/\/+$/, "")}/`);
 	url.search = request.nextUrl.search;
 	const headers = new Headers();
 	for (const name of ["cookie", "content-type", "x-csrf-token"]) {

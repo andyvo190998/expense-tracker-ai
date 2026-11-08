@@ -1,4 +1,5 @@
 import { HttpAgent } from "@ag-ui/client";
+import { expenseApiUrl } from "@/lib/backend-proxy";
 import {
 	CopilotRuntime,
 	createCopilotRuntimeHandler,
@@ -14,7 +15,9 @@ function createHandler(request: Request) {
 	const runtime = new CopilotRuntime({
 		agents: {
 			expense_agent: new HttpAgent({
-				url: process.env.BACKEND_AGENT_URL ?? "http://localhost:8000/agents/expense",
+				url: process.env.EXPENSE_API_URL
+					? expenseApiUrl("agents/expense").href
+					: process.env.BACKEND_AGENT_URL ?? "http://localhost:8000/agents/expense",
 				headers,
 			}),
 		},

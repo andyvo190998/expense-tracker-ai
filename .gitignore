@@ -222,3 +222,4 @@ node_modules
 dist
 .turbo/
 .next/
+.vercel/

@@ -247,6 +247,12 @@ PostgreSQL
 ```
 
 ## Deployment
+The repository also supports a single Vercel project with private FastAPI and
+NestJS services behind the Next.js API routes. Kafka notifications and the
+outbox relay run as continuous daemons. See
+[`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for bindings, external
+resources, migrations, and deployment checks.
+
 Initial deployment can run on one VPS:
 
 ```text
